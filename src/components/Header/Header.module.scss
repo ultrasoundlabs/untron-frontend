@@ -1,0 +1,18 @@
+.Header {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 50px;
+}
+
+.Logo {
+    height: 58px;
+}
+
+.DocsLink {
+    color: var(--color-text-primary);
+    font-size: 20px;
+    line-height: 1.25em;
+    font-weight: 400;
+    cursor: pointer;
+}

@@ -1,0 +1,48 @@
+.Block {
+    width: 100%;
+    padding: 24px;
+    border-radius: 36px;
+    background: var(--color-panel);
+}
+
+.Row {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: 32px;
+}
+
+.Left {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.Label {
+    color: var(--color-text-primary);
+    font-size: 20px;
+    line-height: 1.25em;
+    font-weight: 400;
+}
+
+.Amount {
+    color: var(--color-text-secondary);
+    font-size: 36px;
+    line-height: 1.25em;
+    font-weight: 700;
+}
+
+.Balance {
+    color: var(--color-text-secondary);
+    font-size: 16px;
+    line-height: 1.25em;
+    font-weight: 400;
+}
+
+.Right {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    height: max-content;
+}
