@@ -5,23 +5,38 @@ import SwapFormInput from './Input';
 import SwapFormLoadingSpinner from './LoadingSpinner';
 import { useState } from 'react';
 import SwapFormSuccessModal from './SuccessModal';
+import SwapFormErrorModal from './ErrorModal';
 
 export default function SwapForm() {
 	const [transaction, setTransaction] = useState<any>(null);
+	const [transactionError, setTransactionError] = useState<any>(null);
 	const [isSwapping, setIsSwapping] = useState<boolean>(false);
 
 	async function requestSwap() {
 		if (isSwapping) return;
 		setIsSwapping(true);
-		await new Promise((res) => setTimeout(res, 1000));
-		setIsSwapping(false);
-		setTransaction({
-			url: 'link_to_TronScan',
-		});
+		new Promise((res) => setTimeout(res, 1000))
+			.then(
+				() => {
+					setTransaction({
+						url: 'link_to_TronScan',
+					});
+				},
+				(e) => {
+					setTransactionError(e);
+				}
+			)
+			.finally(() => {
+				setIsSwapping(false);
+			});
 	}
 
 	function clearTransaction() {
 		setTransaction(null);
+	}
+
+	function clearTransactionError() {
+		setTransactionError(null);
 	}
 
 	return (
@@ -79,6 +94,7 @@ export default function SwapForm() {
 					console.info('address', address);
 					return (
 						<button
+							disabled={isConnecting || isSwapping}
 							className={styles.Button}
 							onClick={() => {
 								if (isConnected && address) {
@@ -95,6 +111,7 @@ export default function SwapForm() {
 			</ConnectKitButton.Custom>
 			<p className={styles.Info}>Swaps from Tron coming soon</p>
 			<SwapFormSuccessModal transaction={transaction} onClose={() => clearTransaction()} />
+			<SwapFormErrorModal error={transactionError} onClose={() => clearTransactionError()} />
 		</div>
 	);
 }
