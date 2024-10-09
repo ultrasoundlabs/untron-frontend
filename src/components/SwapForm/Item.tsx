@@ -2,15 +2,13 @@ import styles from './Item.module.scss';
 
 export default function SwapFormItem({
 	label,
-	amount,
-	balance,
-	currency,
+	amountInputProps,
+	convertedAmountInputProps,
 	chainId,
 }: {
 	label: string;
-	amount: number;
-	balance: number;
-	currency: string;
+	amountInputProps: JSX.IntrinsicElements['input'];
+	convertedAmountInputProps: JSX.IntrinsicElements['input'];
 	chainId: string;
 }) {
 	return (
@@ -18,11 +16,8 @@ export default function SwapFormItem({
 			<div className={styles.Row}>
 				<div className={styles.Left}>
 					<div className={styles.Label}>{label}</div>
-					<div className={styles.Amount}>{Number(amount).toFixed(2)}</div>
-					<div className={styles.Balance}>
-						{currency}
-						{Number(balance).toFixed(2)}
-					</div>
+					<input {...amountInputProps} className={styles.Amount} />
+					<input {...convertedAmountInputProps} className={styles.ConvertedAmount} />
 				</div>
 				<div className={styles.Right}>
 					<img src='/images/chain.png' alt='' height={58} width={58} />

@@ -26,7 +26,18 @@ export default function SwapForm() {
 
 	return (
 		<div className={styles.Form}>
-			<SwapFormItem chainId='tron' label='You send' amount={52} balance={260645} currency='$' />
+			<SwapFormItem
+				chainId='tron'
+				label='You send'
+				amountInputProps={{
+					placeholder: 'Enter amount',
+					defaultValue: '52.00',
+				}}
+				convertedAmountInputProps={{
+					placeholder: 'Converted amount',
+					defaultValue: '$260045.00',
+				}}
+			/>
 			<div className={styles.SwapArrowContainer}>
 				<button className={styles.SwapArrow}>
 					{/* Place svg icon here differently depends on your preferences */}
@@ -39,9 +50,26 @@ export default function SwapForm() {
 					</svg>
 				</button>
 			</div>
-			<SwapFormItem chainId='tron' label='You receive' amount={99.35} balance={260645} currency='$' />
+			<SwapFormItem
+				chainId='tron'
+				label='You receive'
+				amountInputProps={{
+					placeholder: 'Enter amount',
+					defaultValue: '52.00',
+				}}
+				convertedAmountInputProps={{
+					placeholder: 'Converted amount',
+					defaultValue: '$260045.00',
+				}}
+			/>
 			<div className={styles.Gap} />
-			<SwapFormInput />
+			<SwapFormInput
+				inputProps={{
+					type: 'text',
+					placeholder: 'Tron address',
+					autoComplete: 'off',
+				}}
+			/>
 			<div className={styles.Gap} />
 			<ConnectKitButton.Custom>
 				{({ isConnected, isConnecting, show, address }) => {
