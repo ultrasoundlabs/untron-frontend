@@ -31,7 +31,7 @@ $form-gap: 16px;
     justify-content: center;
     background: var(--color-background-button-primary);
 
-    &>svg {
+    & > svg {
         height: 35px;
         width: 35px;
         object-fit: contain;
