@@ -1,4 +1,4 @@
-import { keccak256, encodeAbiParameters, toHex } from 'viem';
+import { keccak256, encodeAbiParameters } from 'viem';
 
 // Define the types for the inputs and the order
 export type Input = {
@@ -70,10 +70,6 @@ export function generateOrderId(order: Order): `0x${string}` {
         { type: 'bytes', name: 'orderData' }, // The orderData will be the ABI encoded Intent
     ];
 
-    const intentInputs = [] as [`0x${string}`, bigint][]; // Tuple array for inputs
-    for (const input of order.intent.inputs) {
-        intentInputs.push([input.token, input.amount]);
-    }
 
     // Encode the order parameters using viem's `encodeAbiParameters`
     const encodedOrder = encodeAbiParameters(orderAbiTypes, [
@@ -83,23 +79,16 @@ export function generateOrderId(order: Order): `0x${string}` {
         BigInt(order.originChainId), // Convert number to bigint for encoding
         order.openDeadline,
         order.fillDeadline,
-        encodeAbiParameters(
-            [
-                { type: 'address', name: 'refundBeneficiary' },
-                {
-                    type: 'tuple[]',
-                    name: 'inputs',
-                    components: [{ type: 'address' }, { type: 'uint256' }],
-                },
-                { type: 'bytes21', name: 'to' },
-                { type: 'uint256', name: 'outputAmount' },
-            ],
-            [order.intent.refundBeneficiary, intentInputs, order.intent.to, order.intent.outputAmount],
-        ),
+        encodeIntent(order.intent), // Encode the intent
     ]);
 
     // Hash the encoded order to get the order ID
-    return keccak256(encodedOrder);
+    // TODO: See if this is the correct way or if we should do something in the sc instead :shrug:
+    // Add offset of 32 bytes
+    const offsetEncodedOrder = ('0x0000000000000000000000000000000000000000000000000000000000000020' +
+        encodedOrder.slice(2)) as `0x${string}`;
+
+    return keccak256(offsetEncodedOrder);
 }
 
 export function encodeIntent(intent: Intent): `0x${string}` {
@@ -128,6 +117,8 @@ export function encodeIntent(intent: Intent): `0x${string}` {
         intent.outputAmount,
     ]);
 
+    const offsetEncodedIntent = ('0x0000000000000000000000000000000000000000000000000000000000000020' +
+        encodedIntent.slice(2)) as `0x${string}`;
     // Convert the encoded intent to hexadecimal format (starts with '0x')
-    return toHex(encodedIntent) as `0x${string}`;
+    return offsetEncodedIntent;
 }

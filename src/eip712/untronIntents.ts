@@ -1,5 +1,3 @@
-// src/untronIntentsDomain.ts
-
 export const untronIntentsDomain = (chainId: number, contractAddress: `0x${string}`) => ({
     name: 'UntronIntents',
     version: '1',
@@ -9,7 +7,6 @@ export const untronIntentsDomain = (chainId: number, contractAddress: `0x${strin
 
 export const untronIntentsTypes = {
     Intent: [
-        { name: 'INTENT_TYPEHASH', type: 'bytes32' },
         { name: 'refundBeneficiary', type: 'address' },
         { name: 'inputs', type: 'Input[]' },
         { name: 'to', type: 'bytes21' },

@@ -51,7 +51,7 @@ export default function SwapForm() {
                 deadline,
             };
             console.log('Permit:', permit);
-            const permitSignature = await signPermit(walletClient, chainId, tokenAddress, permit);
+            const permitSignature = await signPermit(walletClient, chainId, tokenAddress, permit, nonce);
 
             const intent: Intent = {
                 refundBeneficiary: address,
@@ -64,8 +64,8 @@ export default function SwapForm() {
                 user: address,
                 nonce,
                 originChainId: chainId,
-                openDeadline: BigInt(Math.floor(Date.now() / 1000) + 3600),
-                fillDeadline: BigInt(Math.floor(Date.now() / 1000) + 7200),
+                openDeadline: BigInt(1828585485), //BigInt(Math.floor(Date.now() / 1000) + 3600),
+                fillDeadline: BigInt(1828585485), //BigInt(Math.floor(Date.now() / 1000) + 7200),
                 intent: intent,
             };
             const orderSignature = await signOrder(walletClient, chainId, contractAddress, order);
