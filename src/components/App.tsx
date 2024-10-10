@@ -5,13 +5,13 @@ import styles from './App.module.scss';
 import Header from './Header/Header';
 
 function App() {
-	return (
-		<div className={styles.Container}>
-			<Header />
-			<SwapForm />
-			<FooterInfo />
-		</div>
-	);
+    return (
+        <div className={styles.Container}>
+            <Header />
+            <SwapForm />
+            <FooterInfo />
+        </div>
+    );
 }
 
 export default App;
