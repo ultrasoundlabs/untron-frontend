@@ -6,7 +6,8 @@
     box-sizing: border-box;
 }
 
-button {
+button,
+input {
     box-shadow: none;
     outline: none;
     border: none;
@@ -21,23 +22,23 @@ a {
 // ----
 
 :root {
-    --color-background: #f5f5f7;
+    --color-background: #F5F5F7;
     --color-panel: #ffffff;
 
     --color-text-h1: #000000;
     --color-text-primary: #000000;
-    --color-text-secondary: #8d8d8d;
-    --color-text-placeholder: #9b9b9b;
+    --color-text-secondary: #8D8D8D;
+    --color-text-placeholder: #9B9B9B;
 
     --color-background-button-primary: #000000;
-    --color-text-button-primary: #ffffff;
+    --color-text-button-primary: #FFFFFF;
 
     --ck-connectbutton-background: var(--color-background-button-primary);
     --ck-connectbutton-color: var(--color-text-button-primary);
 }
 
 * {
-    font-family: 'DM Sans', sans-serif !important;
+    font-family: "DM Sans", sans-serif !important;
 }
 
 body {

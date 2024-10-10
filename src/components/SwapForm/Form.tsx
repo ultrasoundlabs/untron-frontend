@@ -4,6 +4,7 @@ import SwapFormItem from './Item';
 import SwapFormInput from './Input';
 import SwapFormLoadingSpinner from './LoadingSpinner';
 import SwapFormSuccessModal from './SuccessModal';
+import SwapFormErrorModal from './ErrorModal';
 import { useState } from 'react';
 import { useAccount, usePublicClient, useWalletClient } from 'wagmi';
 import axios from 'axios';
@@ -29,7 +30,6 @@ export default function SwapForm() {
         }
 
         setIsSwapping(true);
-        setErrorMessage(null);
 
         try {
             const chainId = await walletClient.getChainId();
@@ -96,7 +96,7 @@ export default function SwapForm() {
             });
         } catch (error: any) {
             console.error('Error during swap:', error);
-            setErrorMessage('Error: Swap could not be performed, please try again.');
+            setErrorMessage('Swap could not be performed, please try again.');
         } finally {
             setIsSwapping(false);
         }
@@ -105,10 +105,24 @@ export default function SwapForm() {
     function clearTransaction() {
         setTransaction(null);
     }
+    function clearErrorMessage() {
+        setErrorMessage(null);
+    }
 
     return (
         <div className={styles.Form}>
-            <SwapFormItem chainId="tron" label="You send" amount={52} balance={260645} currency="$" />
+            <SwapFormItem
+                chainId="tron"
+                label="You send"
+                amountInputProps={{
+                    placeholder: 'Enter amount',
+                    defaultValue: '52.00',
+                }}
+                convertedAmountInputProps={{
+                    placeholder: 'Converted amount',
+                    defaultValue: '$260045.00',
+                }}
+            />
             <div className={styles.SwapArrowContainer}>
                 <button className={styles.SwapArrow}>
                     {/* Place svg icon here differently depends on your preferences */}
@@ -121,9 +135,26 @@ export default function SwapForm() {
                     </svg>
                 </button>
             </div>
-            <SwapFormItem chainId="tron" label="You receive" amount={99.35} balance={260645} currency="$" />
+            <SwapFormItem
+                chainId="tron"
+                label="You receive"
+                amountInputProps={{
+                    placeholder: 'Enter amount',
+                    defaultValue: '52.00',
+                }}
+                convertedAmountInputProps={{
+                    placeholder: 'Converted amount',
+                    defaultValue: '$260045.00',
+                }}
+            />
             <div className={styles.Gap} />
-            <SwapFormInput />
+            <SwapFormInput
+                inputProps={{
+                    type: 'text',
+                    placeholder: 'Tron address',
+                    autoComplete: 'off',
+                }}
+            />
             <div className={styles.Gap} />
             <ConnectKitButton.Custom>
                 {({ isConnected, isConnecting, show, address }) => (
@@ -147,9 +178,9 @@ export default function SwapForm() {
                     </button>
                 )}
             </ConnectKitButton.Custom>
-            {errorMessage && <p className={styles.Error}>{errorMessage}</p>}
             <p className={styles.Info}>Swaps from Tron coming soon</p>
             <SwapFormSuccessModal transaction={transaction} onClose={() => clearTransaction()} />
+            <SwapFormErrorModal error={errorMessage} onClose={() => clearErrorMessage()} />
         </div>
     );
 }
