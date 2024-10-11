@@ -58,7 +58,7 @@ export async function signOrder(
     walletClient: WalletClient,
     chainId: number,
     contractAddress: `0x${string}`,
-    order: Order,
+    order: Order
 ) {
     const INTENT_TYPEHASH = keccak256(
         stringToBytes(

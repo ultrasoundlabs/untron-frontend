@@ -8,7 +8,7 @@ console.log(process.env.NODE_ENV);
 const config = createConfig(
     getDefaultConfig({
         // Your dApps chains
-        chains: [process.env.NODE_ENV === 'development' ? baseSepolia : base],
+        chains: [base],
 
         transports: {
             // RPC URL for each chain

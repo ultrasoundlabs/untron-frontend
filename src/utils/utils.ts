@@ -94,7 +94,7 @@ export function generateOrderId(order: Order): `0x${string}` {
         {
             type: 'tuple[]',
             name: 'minReceived',
-            components: [{ type: 'address' }, { type: 'uint256' }, { type: 'bytes32' }, { type: 'uint32' }],
+            components: [{ type: 'bytes32' }, { type: 'uint256' }, { type: 'bytes32' }, { type: 'uint32' }],
         },
         {
             type: 'tuple[]',
@@ -110,19 +110,16 @@ export function generateOrderId(order: Order): `0x${string}` {
 
     const minReceived = [] as [`0x${string}`, bigint, `0x${string}`, number][]; // Tuple array for inputs
     minReceived.push([
-        // TODO: Convert to bytes32 representation
-        '0x41a614f803b6fd780986a42c78ec9c7f77e6ded13c' as `0x${string}`,
+        '0x000000000000000000000041a614f803b6fd780986a42c78ec9c7f77e6ded13c' as `0x${string}`,
         order.intent.outputAmount,
-        // TODO: Convert to bytes32 representation
-        order.intent.to,
+        `0x${order.intent.to.slice(2).padStart(64, '0')}` as `0x${string}`,
         0x800000c3,
     ]);
 
     const fillInstructions = [] as [number, `0x${string}`, `0x${string}`][]; // Tuple array for inputs
     fillInstructions.push([
         0x800000c3,
-        // TODO: Convert to bytes32 representation
-        '0x00' as `0x${string}`,
+        `0x${'0'.repeat(64)}` as `0x${string}`,
         '0x' as `0x${string}`,
     ]);
 
