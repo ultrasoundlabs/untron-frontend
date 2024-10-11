@@ -25,12 +25,17 @@ export default function SwapForm() {
     const [inputConvertedAmount, setInputConvertedAmount] = useState<string>(''); // Converted input amount state
     const [outputAmount, setOutputAmount] = useState<string>(''); // Output amount state
     const [outputConvertedAmount, setOutputConvertedAmount] = useState<string>(''); // Converted output amount state
+    const [tronAddress, setTronAddress] = useState<string>(''); // Tron address state
 
     // Fee percentage
     const FEE_PERCENTAGE = 0.001; // 0.1% fee
 
     // Hardcoded rate (1:1 for now)
     const EXCHANGE_RATE = 1;
+
+    const handleAddressChange = (address: string) => {
+        setTronAddress(address);
+    };
 
     const handleAmountChange = (amount: string) => {
         setInputAmount(amount);
@@ -90,7 +95,7 @@ export default function SwapForm() {
             const intent: Intent = {
                 refundBeneficiary: address,
                 inputs: [{ token: tokenAddress, amount: value }],
-                to: '0x418187505007dfc0c80bd64288c73d79665761af5d', // Replace with actual destination address
+                to: tronAddress as `0x${string}`,
                 outputAmount: outputValue,
             };
             const order: Order = {
@@ -103,7 +108,7 @@ export default function SwapForm() {
                 intent: intent,
             };
             const orderSignature = await signOrder(walletClient, chainId, contractAddress, order);
-            const orderData = encodeIntent(intent); 
+            const orderData = encodeIntent(intent);
 
             const response = await axios.post('http://localhost:3001/intents/permitted-gasless-order', {
                 user: address,
@@ -186,7 +191,9 @@ export default function SwapForm() {
                 inputProps={{
                     type: 'text',
                     placeholder: 'Tron address',
+                    value: tronAddress,
                     autoComplete: 'off',
+                    onChange: (e) => handleAddressChange(e.target.value),
                 }}
             />
             <div className={styles.Gap} />
