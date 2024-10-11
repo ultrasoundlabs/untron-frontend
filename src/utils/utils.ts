@@ -70,7 +70,6 @@ export function generateOrderId(order: Order): `0x${string}` {
         { type: 'bytes', name: 'orderData' }, // The orderData will be the ABI encoded Intent
     ];
 
-
     // Encode the order parameters using viem's `encodeAbiParameters`
     const encodedOrder = encodeAbiParameters(orderAbiTypes, [
         order.originSettler,
