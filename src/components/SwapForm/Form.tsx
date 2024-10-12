@@ -81,8 +81,8 @@ export default function SwapForm() {
 
         try {
             const chainId = await walletClient.getChainId();
-            const tokenAddress = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' as `0x${string}`; // Replace with actual token address
-            const contractAddress = '0xaA51936583431E86A078e96f8Cf5bcAaF6D542Dc' as `0x${string}`; // Replace with actual contract address
+            const tokenAddress = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' as `0x${string}`;
+            const contractAddress = '0x5FB5388a15d6d77b0ed227765A82E9A2E4AaFbdf' as `0x${string}`; // untron intents proxy
             const spender = contractAddress; // The contract is the spender
             const value = BigInt(Math.floor(parseFloat(inputAmount) * 1e6)); // Convert inputAmount to BigInt
             const outputValue = BigInt(Math.floor(parseFloat(outputAmount) * 1e6)); // Convert outputAmount to BigInt
