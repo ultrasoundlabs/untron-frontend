@@ -7,9 +7,11 @@ import SwapFormSuccessModal from './SuccessModal';
 import SwapFormErrorModal from './ErrorModal';
 import { useState } from 'react';
 import { useAccount, usePublicClient, useWalletClient } from 'wagmi';
+import { UserRejectedRequestError } from 'viem';
 import axios from 'axios';
 import { signOrder, signPermit } from '../../eip712/signer';
 import { encodeIntent, getTokenNonce, Intent, Order, Permit } from '../../utils/utils';
+import bs58check from 'bs58check';
 
 export default function SwapForm() {
     const { address } = useAccount();
@@ -27,8 +29,9 @@ export default function SwapForm() {
     const [outputConvertedAmount, setOutputConvertedAmount] = useState<string>(''); // Converted output amount state
     const [tronAddress, setTronAddress] = useState<string>(''); // Tron address state
 
-    // Fee percentage
-    const FEE_PERCENTAGE = 0.001; // 0.1% fee
+    // Fee percentage and flat fee
+    const FEE_PERCENTAGE = 0.0; // 0% fee
+    const FLAT_FEE = 0.2; // $0.2 flat fee
 
     // Hardcoded rate (1:1 for now)
     const EXCHANGE_RATE = 1;
@@ -47,19 +50,24 @@ export default function SwapForm() {
             setOutputConvertedAmount('');
             return;
         }
-
         // Calculate input converted amount (rate * input amount)
         const inputConverted = parseFloat(amount) * EXCHANGE_RATE;
         setInputConvertedAmount(`$${inputConverted.toFixed(2)}`);
 
-        // Calculate output amount (input - fee)
-        const fee = parseFloat(amount) * FEE_PERCENTAGE;
-        const output = parseFloat(amount) - fee;
-        setOutputAmount(output.toFixed(2));
+        // Handle inputs less than flat fee
+        if (parseFloat(amount) <= FLAT_FEE) {
+            setOutputAmount('0.00');
+            setOutputConvertedAmount('$0.00');
+        } else {
+            // Calculate output amount (input - percentage fee - flat fee)
+            const percentageFee = parseFloat(amount) * FEE_PERCENTAGE;
+            const output = parseFloat(amount) - percentageFee - FLAT_FEE;
+            setOutputAmount(output.toFixed(2));
 
-        // Calculate output converted amount (rate * output amount)
-        const outputConverted = output * EXCHANGE_RATE;
-        setOutputConvertedAmount(`$${outputConverted.toFixed(2)}`);
+            // Calculate output converted amount (rate * output amount)
+            const outputConverted = output * EXCHANGE_RATE;
+            setOutputConvertedAmount(`$${outputConverted.toFixed(2)}`);
+        }
     };
 
     async function requestSwap() {
@@ -92,10 +100,12 @@ export default function SwapForm() {
             };
             const permitSignature = await signPermit(walletClient, chainId, tokenAddress, permit, nonce);
 
+            const decodedTronAddress = '0x' + Buffer.from(bs58check.decode(tronAddress)).toString('hex');
+
             const intent: Intent = {
                 refundBeneficiary: address,
                 inputs: [{ token: tokenAddress, amount: value }],
-                to: tronAddress as `0x${string}`,
+                to: decodedTronAddress as `0x${string}`,
                 outputAmount: outputValue,
             };
             const order: Order = {
@@ -127,13 +137,14 @@ export default function SwapForm() {
                 ],
             });
 
-            console.log('Backend response:', response.data);
             setTransaction({
-                url: `https://basescan.org/tx/${response.data.txHash}`,
+                url: `https://basescan.org/tx/${response.data}`,
             });
         } catch (error: any) {
             console.error('Error during swap:', error);
-            setErrorMessage('Swap could not be performed, please try again.');
+            if (!(error instanceof UserRejectedRequestError)) {
+                setErrorMessage('Swap could not be performed, please try again.');
+            }
         } finally {
             setIsSwapping(false);
         }
@@ -149,18 +160,19 @@ export default function SwapForm() {
     return (
         <div className={styles.Form}>
             <SwapFormItem
-                chainId="tron"
+                chainId="base"
                 label="You send"
                 amountInputProps={{
-                    placeholder: 'Enter amount',
+                    placeholder: '100',
                     value: inputAmount,
                     onChange: (e) => handleAmountChange(e.target.value),
                 }}
                 convertedAmountInputProps={{
-                    placeholder: 'Converted amount',
+                    placeholder: '$100.00',
                     value: inputConvertedAmount,
                     readOnly: true, // Marking it as read-only since it's calculated
                 }}
+                iconSrc='images/usdcbase.png'
             />
             <div className={styles.SwapArrowContainer}>
                 <button className={styles.SwapArrow}>
@@ -176,21 +188,22 @@ export default function SwapForm() {
                 chainId="tron"
                 label="You receive"
                 amountInputProps={{
-                    placeholder: 'You receive amount',
+                    placeholder: '99.8',
                     value: outputAmount,
                     readOnly: true, // Marking it as read-only since it's calculated
                 }}
                 convertedAmountInputProps={{
-                    placeholder: 'Converted amount',
+                    placeholder: '$99.80',
                     value: outputConvertedAmount,
                     readOnly: true, // Marking it as read-only since it's calculated
                 }}
+                iconSrc='images/usdttron.png'
             />
             <div className={styles.Gap} />
             <SwapFormInput
                 inputProps={{
                     type: 'text',
-                    placeholder: 'Tron address',
+                    placeholder: 'Tron Address',
                     value: tronAddress,
                     autoComplete: 'off',
                     onChange: (e) => handleAddressChange(e.target.value),
