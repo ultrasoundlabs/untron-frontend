@@ -13,6 +13,7 @@
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.0",
     "axios": "^1.7.7",
+    "bs58check": "^4.0.0",
     "connectkit": "^1.8.2",
     "prettier": "^3.3.3",
     "react": "^18.3.1",

@@ -29,7 +29,7 @@ export default function SwapFormSuccessModal({
                         Your transaction was completed successfully.
                         <br />
                         <a href={transaction?.url} target="_blank" rel="noreferrer">
-                            View on TronScan
+                            View on Basescan
                         </a>
                     </div>
                 </div>
