@@ -20,6 +20,11 @@
     border-radius: 36px;
     background: var(--color-panel);
     width: 480px;
+    @media (max-width: 600px) {
+        width: 90%;
+        max-width: 480px;
+        padding: 16px;
+    }
 }
 
 .Top {
@@ -32,9 +37,9 @@
 
 .Title {
     color: var(--color-text-h1);
-    font-size: 24px;
-    line-height: 1.5em;
-    font-weight: 500;
+    font-size: var(--font-size-large, 24px);
+    line-height: var(--line-height-large, 1.5em);
+    font-weight: var(--font-weight-medium, 500);
 }
 
 .CloseButton {
@@ -48,6 +53,9 @@
         object-fit: contain;
         object-position: center;
         color: var(--color-text-primary);
+    }
+    &:hover {
+        opacity: 0.8;
     }
 }
 
@@ -68,18 +76,25 @@
 
 .Message {
     color: var(--color-text-primary);
-    font-size: 24px;
-    line-height: 1.5em;
-    font-weight: 600;
+    font-size: var(--font-size-large, 24px);
+    line-height: var(--line-height-large, 1.5em);
+    font-weight: var(--font-weight-semibold, 600);
 }
 
 .Info {
     color: var(--color-text-secondary);
-    font-size: 18px;
-    line-height: 1.25em;
-    font-weight: 400;
+    font-size: var(--font-size-medium, 18px);
+    line-height: var(--line-height-medium, 1.25em);
+    font-weight: var(--font-weight-regular, 400);
 
     & > a {
         text-decoration: underline;
+        color: var(--color-link, inherit);
+        transition: color 0.2s ease;
+
+        &:hover,
+        &:focus {
+            color: var(--color-link-hover, var(--color-text-primary));
+        }
     }
 }

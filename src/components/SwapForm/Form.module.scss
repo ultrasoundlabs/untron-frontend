@@ -4,7 +4,8 @@ $form-gap: 16px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    width: 580px;
+    width: 100%;
+    max-width: 580px;
     position: relative;
 }
 
@@ -45,9 +46,10 @@ $form-gap: 16px;
     cursor: pointer;
     background: var(--color-background-button-primary);
     color: var(--color-text-button-primary);
-    height: 70px;
+    min-height: 70px;
+    padding: 15px 20px;
     width: 100%;
-    font-size: 24px;
+    font-size: clamp(16px, 5vw, 24px);
     line-height: 1.5em;
     font-weight: 500;
     border-radius: 24px;

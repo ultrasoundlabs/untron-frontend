@@ -2,14 +2,17 @@ import styles from './LoadingSpinner.module.scss';
 
 // If need, replace with better variant
 export default function SwapFormLoadingSpinner() {
+    const size = 38; // Default size
     return (
         <svg
-            width="38"
-            height="38"
+            width={size}
+            height={size}
             viewBox="0 0 38 38"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
             className={styles.Spinner}
+            role="img"
+            aria-label="Loading"
         >
             <circle cx="19" cy="19" r="16.5" stroke="#D9D9D9" strokeOpacity="0.29" strokeWidth="5" />
             <mask id="path-2-inside-1_1_207" fill="white">

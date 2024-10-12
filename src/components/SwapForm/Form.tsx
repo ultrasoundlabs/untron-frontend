@@ -174,7 +174,7 @@ export default function SwapForm() {
                     value: inputConvertedAmount,
                     readOnly: true, // Marking it as read-only since it's calculated
                 }}
-                iconSrc='images/usdcbase.png'
+                iconSrc="images/usdcbase.png"
             />
             <div className={styles.SwapArrowContainer}>
                 <button className={styles.SwapArrow}>
@@ -199,7 +199,7 @@ export default function SwapForm() {
                     value: outputConvertedAmount,
                     readOnly: true, // Marking it as read-only since it's calculated
                 }}
-                iconSrc='images/usdttron.png'
+                iconSrc="images/usdttron.png"
             />
             <div className={styles.Gap} />
             <SwapFormInput

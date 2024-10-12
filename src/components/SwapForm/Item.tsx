@@ -13,17 +13,27 @@ export default function SwapFormItem({
     iconSrc: string;
 }) {
     return (
-        <div className={styles.Block}>
+        <div className={styles.Block} role="group" aria-labelledby={`${label}-label`}>
             <div className={styles.Row}>
                 <div className={styles.Left}>
-                    <div className={styles.Label}>{label}</div>
-                    <input {...amountInputProps} className={styles.Amount} />
-                    <input {...convertedAmountInputProps} className={styles.ConvertedAmount} />
+                    <div id={`${label}-label`} className={styles.Label}>
+                        {label}
+                    </div>
+                    <label className={styles.InputWrapper}>
+                        <span className={styles.srOnly}>Amount</span>
+                        <input {...amountInputProps} className={styles.Amount} aria-label={`${label} amount`} />
+                    </label>
+                    <label className={styles.InputWrapper}>
+                        <span className={styles.srOnly}>Converted Amount</span>
+                        <input
+                            {...convertedAmountInputProps}
+                            className={styles.ConvertedAmount}
+                            aria-label={`${label} converted amount`}
+                        />
+                    </label>
                 </div>
                 <div className={styles.Right}>
-                    <img src={iconSrc} alt="" height={58} width={58} />
-                    {/* Place chain icon here. For some reason, "connectkit" module does ot contain this component. */}
-                    {/* <ChainIcon id={chainId} /> */}
+                    <img src={iconSrc} alt={`${label} icon`} height={58} width={58} />
                 </div>
             </div>
         </div>

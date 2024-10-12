@@ -19,7 +19,9 @@ export default function SwapFormErrorModal({ error, onClose = () => {} }: { erro
                 <img src="/images/success-modal.png" className={styles.Image} alt="" />
                 <div className={styles.Bottom}>
                     <div className={styles.Message}>Transaction Error</div>
-                    <div className={styles.Info}>{error}</div>
+                    <div className={styles.Info}>
+                        {typeof error === 'string' ? error : error?.message || 'An unknown error occurred'}
+                    </div>
                 </div>
             </div>
         </div>

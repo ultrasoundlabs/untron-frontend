@@ -58,7 +58,7 @@ export async function signOrder(
     walletClient: WalletClient,
     chainId: number,
     contractAddress: `0x${string}`,
-    order: Order
+    order: Order,
 ) {
     const INTENT_TYPEHASH = keccak256(
         stringToBytes(
@@ -72,12 +72,10 @@ export async function signOrder(
         INTENT_TYPEHASH,
         refundBeneficiary: order.intent.refundBeneficiary,
         // TODO: Scale to support multiple inputs
-        inputs: [
-            {
-                token: order.intent.inputs[0].token,
-                amount: order.intent.inputs[0].amount,
-            },
-        ],
+        inputs: order.intent.inputs.map((input) => ({
+            token: input.token,
+            amount: input.amount,
+        })),
         to: order.intent.to,
         outputAmount: order.intent.outputAmount,
         orderId: orderId,

@@ -62,7 +62,7 @@ export async function getGaslessNonce(
     publicClient: any,
     chainId: number,
     untronIntentsAddress: `0x${string}`,
-    address: `0x${string}`
+    address: `0x${string}`,
 ): Promise<bigint> {
     console.log(chainId);
     const data = await publicClient.readContract({
@@ -106,7 +106,7 @@ export function generateOrderId(order: Order): `0x${string}` {
     */
 
     //  bytes32 orderId = keccak256(abi.encode(resolvedOrder));
-    const MAX_UINT32 = Math.pow( 2, 32 ) - 1;
+    const MAX_UINT32 = Math.pow(2, 32) - 1;
     const resolvedCrossChainOrderTypes = [
         { type: 'address', name: 'user' },
         { type: 'uint64', name: 'originChainId' },
@@ -125,7 +125,7 @@ export function generateOrderId(order: Order): `0x${string}` {
         {
             type: 'tuple[]',
             name: 'fillInstructions',
-            components: [{ type: 'uint32' }, { type: 'bytes32' }, { type: 'bytes'} ],
+            components: [{ type: 'uint32' }, { type: 'bytes32' }, { type: 'bytes' }],
         },
     ];
 
@@ -143,11 +143,7 @@ export function generateOrderId(order: Order): `0x${string}` {
     ]);
 
     const fillInstructions = [] as [number, `0x${string}`, `0x${string}`][]; // Tuple array for inputs
-    fillInstructions.push([
-        0x800000c3,
-        `0x${'0'.repeat(64)}` as `0x${string}`,
-        '0x' as `0x${string}`,
-    ]);
+    fillInstructions.push([0x800000c3, `0x${'0'.repeat(64)}` as `0x${string}`, '0x' as `0x${string}`]);
 
     const encodedResolvedCrossChainOrder = encodeAbiParameters(resolvedCrossChainOrderTypes, [
         order.user,

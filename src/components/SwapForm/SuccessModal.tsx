@@ -1,10 +1,12 @@
+import { Transaction } from '../../types';
 import styles from './SuccessModal.module.scss';
+import successImage from '../../images/success-modal.png';
 
 export default function SwapFormSuccessModal({
     transaction,
     onClose = () => {},
 }: {
-    transaction?: any;
+    transaction?: Transaction;
     onClose?: () => void;
 }) {
     return (
@@ -22,7 +24,7 @@ export default function SwapFormSuccessModal({
                         </svg>
                     </button>
                 </div>
-                <img src="/images/success-modal.png" className={styles.Image} alt="" />
+                <img src={successImage} className={styles.Image} alt="" />
                 <div className={styles.Bottom}>
                     <div className={styles.Message}>Transaction Successful</div>
                     <div className={styles.Info}>
