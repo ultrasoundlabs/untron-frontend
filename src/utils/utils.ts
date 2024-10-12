@@ -58,6 +58,32 @@ export async function getTokenNonce(
     return BigInt(data.toString());
 }
 
+export async function getGaslessNonce(
+    publicClient: any,
+    chainId: number,
+    untronIntentsAddress: `0x${string}`,
+    address: `0x${string}`
+): Promise<bigint> {
+    console.log(chainId);
+    const data = await publicClient.readContract({
+        address: untronIntentsAddress,
+        chainId,
+        abi: [
+            {
+                constant: true,
+                inputs: [{ name: 'owner', type: 'address' }],
+                name: 'gaslessNonces',
+                outputs: [{ name: '', type: 'uint256' }],
+                type: 'function',
+            },
+        ],
+        functionName: 'gaslessNonces',
+        args: [address],
+    });
+
+    return BigInt(data.toString());
+}
+
 export function generateOrderId(order: Order): `0x${string}` {
     /*
         // Create output array with USDT TRC20 on Tron

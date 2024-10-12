@@ -10,7 +10,7 @@ import { useAccount, usePublicClient, useWalletClient } from 'wagmi';
 import { UserRejectedRequestError } from 'viem';
 import axios from 'axios';
 import { signOrder, signPermit } from '../../eip712/signer';
-import { encodeIntent, getTokenNonce, Intent, Order, Permit } from '../../utils/utils';
+import { encodeIntent, getTokenNonce, getGaslessNonce, Intent, Order, Permit } from '../../utils/utils';
 import bs58check from 'bs58check';
 
 export default function SwapForm() {
@@ -89,18 +89,20 @@ export default function SwapForm() {
             const deadline = BigInt(Math.floor(Date.now() / 1000) + 3600); // 1 hour from now
 
             // Get the nonce
-            const nonce = await getTokenNonce(publicClient, chainId, tokenAddress, address);
+            const tokenNonce = await getTokenNonce(publicClient, chainId, tokenAddress, address);
 
             const permit: Permit = {
                 owner: address,
                 spender,
                 value,
-                nonce,
+                nonce: tokenNonce,
                 deadline,
             };
-            const permitSignature = await signPermit(walletClient, chainId, tokenAddress, permit, nonce);
+            const permitSignature = await signPermit(walletClient, chainId, tokenAddress, permit, tokenNonce);
 
             const decodedTronAddress = '0x' + Buffer.from(bs58check.decode(tronAddress)).toString('hex');
+
+            const gaslessNonce = await getGaslessNonce(publicClient, chainId, contractAddress, address);
 
             const intent: Intent = {
                 refundBeneficiary: address,
@@ -111,7 +113,7 @@ export default function SwapForm() {
             const order: Order = {
                 originSettler: contractAddress,
                 user: address,
-                nonce,
+                nonce: gaslessNonce,
                 originChainId: chainId,
                 openDeadline: BigInt(1828585485),
                 fillDeadline: BigInt(1828585485),
