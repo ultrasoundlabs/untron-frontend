@@ -1,0 +1,76 @@
+$form-gap: 16px;
+
+.Form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 580px;
+    position: relative;
+}
+
+.Gap {
+    height: $form-gap;
+}
+
+.SwapArrowContainer {
+    position: relative;
+    width: 100%;
+    height: $form-gap;
+}
+
+.SwapArrow {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 9999px;
+    height: 66px;
+    width: 66px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-background-button-primary);
+
+    & > svg {
+        height: 35px;
+        width: 35px;
+        object-fit: contain;
+        object-position: center;
+        transform: translateY(2px);
+        color: var(--color-text-button-primary);
+    }
+}
+
+.Button {
+    cursor: pointer;
+    background: var(--color-background-button-primary);
+    color: var(--color-text-button-primary);
+    min-height: 70px;
+    padding: 15px 20px;
+    width: 100%;
+    font-size: clamp(16px, 5vw, 24px);
+    line-height: 1.5em;
+    font-weight: 500;
+    border-radius: 24px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+}
+
+.Info {
+    text-align: center;
+    margin-top: 20px;
+    color: var(--color-text-secondary);
+    font-size: 24px;
+    line-height: 1.5em;
+    font-weight: 400;
+}
+
+.Error {
+    color: red;
+    font-size: 16px;
+    line-height: 1.25em;
+    font-weight: 400;
+}

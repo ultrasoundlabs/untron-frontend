@@ -1,0 +1,48 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap');
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+button,
+input {
+    box-shadow: none;
+    outline: none;
+    border: none;
+    background: none;
+}
+
+a {
+    text-decoration: none;
+    color: inherit;
+}
+
+// ----
+
+:root {
+    --color-background: #f5f5f7;
+    --color-panel: #ffffff;
+
+    --color-text-h1: #000000;
+    --color-text-primary: #000000;
+    --color-text-secondary: #8d8d8d;
+    --color-text-placeholder: #9b9b9b;
+
+    --color-background-button-primary: #000000;
+    --color-text-button-primary: #ffffff;
+
+    --color-error: #ff0000;
+
+    --ck-connectbutton-background: var(--color-background-button-primary);
+    --ck-connectbutton-color: var(--color-text-button-primary);
+}
+
+* {
+    font-family: 'DM Sans', sans-serif !important;
+}
+
+body {
+    background: var(--color-background);
+}
