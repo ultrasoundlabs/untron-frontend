@@ -60,7 +60,7 @@
 }
 
 .InsufficientFunds {
-    color: red;
+    color: var(--color-error);
     font-size: 16px;
     line-height: 1.25em;
     font-weight: 400;

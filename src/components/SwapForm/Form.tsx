@@ -12,6 +12,8 @@ import { signOrder, signPermit } from '../../eip712/signer';
 import { encodeIntent, getTokenNonce, getGaslessNonce, Intent, Order, Permit } from '../../utils/utils';
 import bs58check from 'bs58check';
 import { UserRejectedRequestError } from 'viem'; // Add this import to handle the error
+import { configuration } from '../../config/config';
+import { base } from 'viem/chains';
 
 export default function SwapForm() {
     const { address } = useAccount();
@@ -39,7 +41,7 @@ export default function SwapForm() {
         async function fetchBalance() {
             if (publicClient && address) {
                 const balance = await publicClient.readContract({
-                    address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // USDC on Base
+                    address: configuration.contracts.base.usdc,
                     abi: [
                         {
                             constant: true,
@@ -62,7 +64,7 @@ export default function SwapForm() {
     useEffect(() => {
         async function fetchFees() {
             try {
-                const response = await axios.get('http://localhost:3001/fees'); // Replace with your backend endpoint
+                const response = await axios.get(`${configuration.urls.backend}/fees`); // Replace with your backend endpoint
                 setFees({
                     flatFee: response.data.flatFee,
                     percentFee: response.data.percentFee,
@@ -94,7 +96,7 @@ export default function SwapForm() {
         setInputAmount(amount);
 
         // If the input is empty or invalid, reset the converted and output amounts
-        if (isNaN(parseFloat(amount)) || amount === '') {
+        if (Number.isNaN(parseFloat(amount)) || amount === '') {
             setInputConvertedAmount('');
             setOutputAmount('');
             setOutputConvertedAmount('');
@@ -145,8 +147,16 @@ export default function SwapForm() {
 
         try {
             const chainId = await walletClient.getChainId();
-            const tokenAddress = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' as `0x${string}`; // USDC on Base
-            const contractAddress = '0x5FB5388a15d6d77b0ed227765A82E9A2E4AaFbdf' as `0x${string}`; // untron intents proxy
+            // For this showcase only Base is supported
+            if (chainId !== base.id) {
+                // Give descriptive error message
+                console.error('Unsupported chain:', chainId);
+                setErrorMessage('Unsupported chain');
+                return;
+            }
+
+            const tokenAddress = configuration.contracts.base.usdc;
+            const contractAddress = configuration.contracts.base.untronIntents;
             const spender = contractAddress; // The contract is the spender
             const value = BigInt(Math.floor(parseFloat(inputAmount) * 1e6)); // Convert inputAmount to BigInt
             const outputValue = BigInt(Math.floor(parseFloat(outputAmount) * 1e6)); // Convert outputAmount to BigInt
@@ -184,7 +194,7 @@ export default function SwapForm() {
             const orderSignature = await signOrder(walletClient, chainId, contractAddress, order);
             const orderData = encodeIntent(intent);
 
-            const response = await axios.post('http://localhost:3001/intents/permitted-gasless-order', {
+            const response = await axios.post(`${configuration.urls.backend}/intents/permitted-gasless-order`, {
                 user: address,
                 openDeadline: order.openDeadline.toString(),
                 fillDeadline: order.fillDeadline.toString(),
@@ -206,8 +216,14 @@ export default function SwapForm() {
             });
         } catch (error: any) {
             console.error('Error during swap:', error);
-            if (!(error instanceof UserRejectedRequestError)) {
-                setErrorMessage('Swap could not be performed, please try again.');
+            if (error instanceof UserRejectedRequestError) {
+                setErrorMessage('Transaction was rejected by the user.');
+            } else if (error instanceof axios.AxiosError) {
+                setErrorMessage(`API error: ${error.response?.data?.message || error.message}`);
+            } else if (error instanceof Error) {
+                setErrorMessage(`Swap error: ${error.message}`);
+            } else {
+                setErrorMessage('An unexpected error occurred during the swap. Please try again.');
             }
         } finally {
             setIsSwapping(false);
