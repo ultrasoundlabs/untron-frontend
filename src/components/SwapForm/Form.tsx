@@ -5,13 +5,13 @@ import SwapFormInput from './Input';
 import SwapFormLoadingSpinner from './LoadingSpinner';
 import SwapFormSuccessModal from './SuccessModal';
 import SwapFormErrorModal from './ErrorModal';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAccount, usePublicClient, useWalletClient } from 'wagmi';
-import { UserRejectedRequestError } from 'viem';
 import axios from 'axios';
 import { signOrder, signPermit } from '../../eip712/signer';
 import { encodeIntent, getTokenNonce, getGaslessNonce, Intent, Order, Permit } from '../../utils/utils';
 import bs58check from 'bs58check';
+import { UserRejectedRequestError } from 'viem'; // Add this import to handle the error
 
 export default function SwapForm() {
     const { address } = useAccount();
@@ -28,19 +28,69 @@ export default function SwapForm() {
     const [outputAmount, setOutputAmount] = useState<string>(''); // Output amount state
     const [outputConvertedAmount, setOutputConvertedAmount] = useState<string>(''); // Converted output amount state
     const [tronAddress, setTronAddress] = useState<string>(''); // Tron address state
+    const [userBalance, setUserBalance] = useState<number>(0); // User's balance in Base
+    const [fees, setFees] = useState<{ flatFee: number; percentFee: number }>({ flatFee: 0.2, percentFee: 0.001 }); // Default fees
+    const [insufficientFunds, setInsufficientFunds] = useState<boolean>(false); // Insufficient funds flag
+    const [errorDecodingTronAddress, setErrorDecodingTronAddress] = useState<boolean>(false); // Error decoding Tron address flag
 
-    // Fee percentage and flat fee
-    const FEE_PERCENTAGE = 0.0; // 0% fee
-    const FLAT_FEE = 0.2; // $0.2 flat fee
+    const EXCHANGE_RATE = 1.01; // Exchange rate from USDC to USDT
+    // Fetch user balance (USDC on Base) when the component is mounted
+    useEffect(() => {
+        async function fetchBalance() {
+            if (publicClient && address) {
+                const balance = await publicClient.readContract({
+                    address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // USDC on Base
+                    abi: [
+                        {
+                            constant: true,
+                            inputs: [{ name: '_owner', type: 'address' }],
+                            name: 'balanceOf',
+                            outputs: [{ name: 'balance', type: 'uint256' }],
+                            type: 'function',
+                        },
+                    ],
+                    functionName: 'balanceOf',
+                    args: [address],
+                });
+                setUserBalance(Number(balance) / 1e6); // Convert to USDC (assuming 6 decimals)
+            }
+        }
+        fetchBalance();
+    }, [publicClient, address]);
 
-    // Hardcoded rate (1:1 for now)
-    const EXCHANGE_RATE = 1;
+    // Fetch fees from the backend
+    useEffect(() => {
+        async function fetchFees() {
+            try {
+                const response = await axios.get('http://localhost:3001/fees'); // Replace with your backend endpoint
+                setFees({
+                    flatFee: response.data.flatFee,
+                    percentFee: response.data.percentFee,
+                });
+            } catch (error) {
+                console.error('Failed to fetch fees:', error);
+            }
+        }
+        fetchFees();
+    }, []);
 
     const handleAddressChange = (address: string) => {
+        setErrorDecodingTronAddress(false);
         setTronAddress(address);
     };
 
     const handleAmountChange = (amount: string) => {
+        // Check if entered amount exceeds user's balance
+        if (address && parseFloat(amount) > userBalance) {
+            setInsufficientFunds(true);
+            setOutputAmount('');
+            setOutputConvertedAmount('');
+            setInputAmount(amount);
+            return;
+        } else {
+            setInsufficientFunds(false);
+        }
+
         setInputAmount(amount);
 
         // If the input is empty or invalid, reset the converted and output amounts
@@ -50,18 +100,19 @@ export default function SwapForm() {
             setOutputConvertedAmount('');
             return;
         }
+
         // Calculate input converted amount (rate * input amount)
         const inputConverted = parseFloat(amount) * EXCHANGE_RATE;
         setInputConvertedAmount(`$${inputConverted.toFixed(2)}`);
 
         // Handle inputs less than flat fee
-        if (parseFloat(amount) <= FLAT_FEE) {
+        if (parseFloat(amount) <= fees.flatFee) {
             setOutputAmount('0.00');
             setOutputConvertedAmount('$0.00');
         } else {
             // Calculate output amount (input - percentage fee - flat fee)
-            const percentageFee = parseFloat(amount) * FEE_PERCENTAGE;
-            const output = parseFloat(amount) - percentageFee - FLAT_FEE;
+            const percentageFee = parseFloat(amount) * fees.percentFee;
+            const output = parseFloat(amount) - percentageFee - fees.flatFee;
             setOutputAmount(output.toFixed(2));
 
             // Calculate output converted amount (rate * output amount)
@@ -69,6 +120,8 @@ export default function SwapForm() {
             setOutputConvertedAmount(`$${outputConverted.toFixed(2)}`);
         }
     };
+
+    const isSwapDisabled = !inputAmount || !tronAddress || insufficientFunds; // Disable swap if no amount, no Tron address, or insufficient funds
 
     async function requestSwap() {
         if (isSwapping || !inputAmount || !outputAmount) return;
@@ -79,9 +132,20 @@ export default function SwapForm() {
 
         setIsSwapping(true);
 
+        // Try to decode the Tron address
+        let decodedTronAddress;
+        try {
+            decodedTronAddress = '0x' + Buffer.from(bs58check.decode(tronAddress)).toString('hex');
+        } catch (error) {
+            console.error('Invalid Tron address:', error);
+            setErrorDecodingTronAddress(true);
+            setIsSwapping(false);
+            return;
+        }
+
         try {
             const chainId = await walletClient.getChainId();
-            const tokenAddress = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' as `0x${string}`;
+            const tokenAddress = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' as `0x${string}`; // USDC on Base
             const contractAddress = '0x5FB5388a15d6d77b0ed227765A82E9A2E4AaFbdf' as `0x${string}`; // untron intents proxy
             const spender = contractAddress; // The contract is the spender
             const value = BigInt(Math.floor(parseFloat(inputAmount) * 1e6)); // Convert inputAmount to BigInt
@@ -99,8 +163,6 @@ export default function SwapForm() {
                 deadline,
             };
             const permitSignature = await signPermit(walletClient, chainId, tokenAddress, permit, tokenNonce);
-
-            const decodedTronAddress = '0x' + Buffer.from(bs58check.decode(tronAddress)).toString('hex');
 
             const gaslessNonce = await getGaslessNonce(publicClient, chainId, contractAddress, address);
 
@@ -162,19 +224,20 @@ export default function SwapForm() {
     return (
         <div className={styles.Form}>
             <SwapFormItem
-                chainId="base"
                 label="You send"
                 amountInputProps={{
-                    placeholder: '100',
+                    placeholder: '0',
                     value: inputAmount,
                     onChange: (e) => handleAmountChange(e.target.value),
                 }}
                 convertedAmountInputProps={{
-                    placeholder: '$100.00',
+                    placeholder: '$0.00',
                     value: inputConvertedAmount,
                     readOnly: true, // Marking it as read-only since it's calculated
                 }}
+                balance={userBalance.toFixed(2)} // Display user's balance
                 iconSrc="images/usdcbase.png"
+                insufficientFunds={insufficientFunds}
             />
             <div className={styles.SwapArrowContainer}>
                 <button className={styles.SwapArrow}>
@@ -187,19 +250,19 @@ export default function SwapForm() {
                 </button>
             </div>
             <SwapFormItem
-                chainId="tron"
                 label="You receive"
                 amountInputProps={{
-                    placeholder: '99.8',
+                    placeholder: '0',
                     value: outputAmount,
                     readOnly: true, // Marking it as read-only since it's calculated
                 }}
                 convertedAmountInputProps={{
-                    placeholder: '$99.80',
+                    placeholder: '$0',
                     value: outputConvertedAmount,
                     readOnly: true, // Marking it as read-only since it's calculated
                 }}
                 iconSrc="images/usdttron.png"
+                balance="" // No balance for output
             />
             <div className={styles.Gap} />
             <SwapFormInput
@@ -211,11 +274,13 @@ export default function SwapForm() {
                     onChange: (e) => handleAddressChange(e.target.value),
                 }}
             />
+            {errorDecodingTronAddress && <p className={styles.Error}>Invalid Tron address</p>}
             <div className={styles.Gap} />
             <ConnectKitButton.Custom>
                 {({ isConnected, isConnecting, show, address }) => (
                     <button
-                        className={styles.Button}
+                        className={`${styles.Button} ${isSwapDisabled && isConnected ? styles.DisabledButton : ''}`}
+                        disabled={isSwapDisabled && isConnected} // Only disable when swap conditions are not met
                         onClick={() => {
                             if (isConnected && address) {
                                 requestSwap();

@@ -4,13 +4,16 @@ export default function SwapFormItem({
     label,
     amountInputProps,
     convertedAmountInputProps,
+    balance,
     iconSrc,
+    insufficientFunds,
 }: {
     label: string;
     amountInputProps: JSX.IntrinsicElements['input'];
     convertedAmountInputProps: JSX.IntrinsicElements['input'];
-    chainId: string;
+    balance: string;
     iconSrc: string;
+    insufficientFunds?: boolean;
 }) {
     return (
         <div className={styles.Block} role="group" aria-labelledby={`${label}-label`}>
@@ -30,6 +33,11 @@ export default function SwapFormItem({
                             className={styles.ConvertedAmount}
                             aria-label={`${label} converted amount`}
                         />
+                        {insufficientFunds && (
+                            <div className={styles.InsufficientFunds}>
+                                You have insufficient funds. Your balance is {balance}
+                            </div>
+                        )}
                     </label>
                 </div>
                 <div className={styles.Right}>
