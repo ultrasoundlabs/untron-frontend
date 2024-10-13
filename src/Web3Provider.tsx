@@ -3,8 +3,9 @@ import { WagmiProvider, createConfig, http } from 'wagmi';
 import { ConnectKitProvider, getDefaultConfig } from 'connectkit';
 import { base, baseSepolia } from 'viem/chains';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { configuration } from './config/config';
 
-console.log(process.env.NODE_ENV);
+console.log(configuration.environment);
 const config = createConfig(
     getDefaultConfig({
         // Your dApps chains
