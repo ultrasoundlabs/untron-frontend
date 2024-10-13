@@ -187,8 +187,8 @@ export default function SwapForm() {
                 user: address,
                 nonce: gaslessNonce,
                 originChainId: chainId,
-                openDeadline: BigInt(1828585485),
-                fillDeadline: BigInt(1828585485),
+                openDeadline: BigInt(Math.floor(Date.now() / 1000) + 600), // 10 minutes from now
+                fillDeadline: BigInt(Math.floor(Date.now() / 1000) + 3600), // 1 hour from now
                 intent: intent,
             };
             const orderSignature = await signOrder(walletClient, chainId, contractAddress, order);
