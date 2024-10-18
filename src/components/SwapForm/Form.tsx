@@ -35,6 +35,7 @@ export default function SwapForm() {
     const [insufficientFunds, setInsufficientFunds] = useState<boolean>(false); // Insufficient funds flag
     const [errorDecodingTronAddress, setErrorDecodingTronAddress] = useState<boolean>(false); // Error decoding Tron address flag
     const [exchangeRate, setExchangeRate] = useState<number>(1); // Exchange rate from USDC to USDT
+    const [maxOutputAmount, setMaxOutputAmount] = useState<number>(100); // Maximum output amount, default 100 USDT
     const [maxOutputSurpassed, setMaxOutputSurpassed] = useState<boolean>(false); // Max output amount surpassed flag
 
     // Fetch user balance (USDC on Base) when the component is mounted
@@ -61,15 +62,16 @@ export default function SwapForm() {
         fetchBalance();
     }, [publicClient, address]);
 
-    // Fetch fees from the backend
+    // Fetch information from the backend
     useEffect(() => {
         async function fetchFees() {
             try {
-                const response = await axios.get(`${configuration.urls.backend}/intents/fees`); // Replace with your backend endpoint
+                const response = await axios.get(`${configuration.urls.backend}/intents/information`); // Replace with your backend endpoint
                 setFees({
                     flatFee: response.data.flatFee,
                     percentFee: response.data.percentFee,
                 });
+                setMaxOutputAmount(response.data.maxOutputAmount);
             } catch (error) {
                 console.error('Failed to fetch fees:', error);
             }
@@ -138,8 +140,7 @@ export default function SwapForm() {
             const percentageFee = parseFloat(amount) * fees.percentFee;
             const output = parseFloat(amount) * exchangeRate - percentageFee - fees.flatFee;
 
-            const MAX_USDT = 100; // Maximum output amount in USDT
-            if (output > MAX_USDT) {
+            if (output > maxOutputAmount) {
                 setMaxOutputSurpassed(true);
                 setOutputAmount('');
                 setOutputConvertedAmount('');
