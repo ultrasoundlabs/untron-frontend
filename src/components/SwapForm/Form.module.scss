@@ -59,6 +59,12 @@ $form-gap: 16px;
     justify-content: center;
 }
 
+.DisabledButton {
+    cursor: not-allowed;
+    background: var(--color-background-button-disabled);
+    color: var(--color-text-button-disabled);
+}
+
 .Info {
     text-align: center;
     margin-top: 20px;
