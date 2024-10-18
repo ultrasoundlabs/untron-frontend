@@ -34,8 +34,10 @@ export default function SwapForm() {
     const [fees, setFees] = useState<{ flatFee: number; percentFee: number }>({ flatFee: 0.2, percentFee: 0.001 }); // Default fees
     const [insufficientFunds, setInsufficientFunds] = useState<boolean>(false); // Insufficient funds flag
     const [errorDecodingTronAddress, setErrorDecodingTronAddress] = useState<boolean>(false); // Error decoding Tron address flag
+    const [exchangeRate, setExchangeRate] = useState<number | null>(null); // Exchange rate from origin to USDT
+    const [maxOutputAmount, setMaxOutputAmount] = useState<number>(100); // Maximum output amount, default 100 USDT
+    const [maxOutputSurpassed, setMaxOutputSurpassed] = useState<boolean>(false); // Max output amount surpassed flag
 
-    const EXCHANGE_RATE = 1.01; // Exchange rate from USDC to USDT
     // Fetch user balance (USDC on Base) when the component is mounted
     useEffect(() => {
         async function fetchBalance() {
@@ -60,20 +62,44 @@ export default function SwapForm() {
         fetchBalance();
     }, [publicClient, address]);
 
-    // Fetch fees from the backend
+    // Fetch information from the backend
     useEffect(() => {
         async function fetchFees() {
             try {
-                const response = await axios.get(`${configuration.urls.backend}/fees`); // Replace with your backend endpoint
+                const response = await axios.get(`${configuration.urls.backend}/intents/information`); // Replace with your backend endpoint
                 setFees({
                     flatFee: response.data.flatFee,
                     percentFee: response.data.percentFee,
                 });
+                setMaxOutputAmount(response.data.maxOutputAmount);
             } catch (error) {
                 console.error('Failed to fetch fees:', error);
             }
         }
         fetchFees();
+    }, []);
+
+    // Fetch rates from the backend
+    useEffect(() => {
+        async function fetchRates() {
+            try {
+                const response = await axios.get(`${configuration.urls.backend}/intents/rates`, {
+                    params: {
+                        token: configuration.contracts.base.usdc,
+                        chainId: base.id,
+                    },
+                });
+                const rate = response.data.rate;
+                if (rate) {
+                    setExchangeRate(Number(rate));
+                }
+            } catch (error) {
+                console.error('Failed to fetch rates:', error);
+                setExchangeRate(null);
+                 // Optionally, set an error message or state to display to the user
+            }
+        }
+        fetchRates();
     }, []);
 
     const handleAddressChange = (address: string) => {
@@ -103,8 +129,9 @@ export default function SwapForm() {
             return;
         }
 
-        // Calculate input converted amount (rate * input amount)
-        const inputConverted = parseFloat(amount) * EXCHANGE_RATE;
+        // Calculate input converted amount (rate * input amount) (assumes 1 USDC = 1 USD)
+        const usdcUsdRate = 1; // TODO: Fetch this rate from the backend
+        const inputConverted = parseFloat(amount) * usdcUsdRate;
         setInputConvertedAmount(`$${inputConverted.toFixed(2)}`);
 
         // Handle inputs less than flat fee
@@ -112,18 +139,31 @@ export default function SwapForm() {
             setOutputAmount('0.00');
             setOutputConvertedAmount('$0.00');
         } else {
-            // Calculate output amount (input - percentage fee - flat fee)
+            // Calculate output amount (input*rate - percentage fee - flat fee)
             const percentageFee = parseFloat(amount) * fees.percentFee;
-            const output = parseFloat(amount) - percentageFee - fees.flatFee;
+
+            if (!exchangeRate) throw new Error('Exchange rate not available');
+            const output = parseFloat(amount) * exchangeRate - percentageFee - fees.flatFee;
+
+            if (output > maxOutputAmount) {
+                setMaxOutputSurpassed(true);
+                setOutputAmount('');
+                setOutputConvertedAmount('');
+                setInputAmount(amount);
+                return;
+            }
+
             setOutputAmount(output.toFixed(2));
 
-            // Calculate output converted amount (rate * output amount)
-            const outputConverted = output * EXCHANGE_RATE;
+            // Calculate output converted amount (rate * output amount) in USD (assumes 1 USDT = 1 USD)
+            const usdtToUsdRate = 1; // TODO: Fetch this rate from the backend
+            const outputConverted = output * usdtToUsdRate;
             setOutputConvertedAmount(`$${outputConverted.toFixed(2)}`);
         }
     };
 
-    const isSwapDisabled = !inputAmount || !tronAddress || insufficientFunds; // Disable swap if no amount, no Tron address, or insufficient funds
+    const isSwapDisabled =
+        !inputAmount || !tronAddress || insufficientFunds || maxOutputSurpassed || exchangeRate === null; // Disable swap if no amount, no Tron address, or insufficient funds, or max output surpassed
 
     async function requestSwap() {
         if (isSwapping || !inputAmount || !outputAmount) return;
@@ -279,6 +319,7 @@ export default function SwapForm() {
                 }}
                 iconSrc="images/usdttron.png"
                 balance="" // No balance for output
+                maxOutputSurpassed={maxOutputSurpassed}
             />
             <div className={styles.Gap} />
             <SwapFormInput

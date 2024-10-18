@@ -7,6 +7,7 @@ export default function SwapFormItem({
     balance,
     iconSrc,
     insufficientFunds,
+    maxOutputSurpassed,
 }: {
     label: string;
     amountInputProps: JSX.IntrinsicElements['input'];
@@ -14,6 +15,7 @@ export default function SwapFormItem({
     balance: string;
     iconSrc: string;
     insufficientFunds?: boolean;
+    maxOutputSurpassed?: boolean;
 }) {
     return (
         <div className={styles.Block} role="group" aria-labelledby={`${label}-label`}>
@@ -37,6 +39,9 @@ export default function SwapFormItem({
                             <div className={styles.InsufficientFunds}>
                                 You have insufficient funds. Your balance is {balance}
                             </div>
+                        )}
+                        {maxOutputSurpassed && (
+                            <div className={styles.InsufficientFunds}>Not enough funds to cover the transaction.</div>
                         )}
                     </label>
                 </div>
