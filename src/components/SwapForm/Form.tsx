@@ -34,7 +34,7 @@ export default function SwapForm() {
     const [fees, setFees] = useState<{ flatFee: number; percentFee: number }>({ flatFee: 0.2, percentFee: 0.001 }); // Default fees
     const [insufficientFunds, setInsufficientFunds] = useState<boolean>(false); // Insufficient funds flag
     const [errorDecodingTronAddress, setErrorDecodingTronAddress] = useState<boolean>(false); // Error decoding Tron address flag
-    const [exchangeRate, setExchangeRate] = useState<number>(1); // Exchange rate from USDC to USDT
+    const [exchangeRate, setExchangeRate] = useState<number | null>(null); // Exchange rate from origin to USDT
     const [maxOutputAmount, setMaxOutputAmount] = useState<number>(100); // Maximum output amount, default 100 USDT
     const [maxOutputSurpassed, setMaxOutputSurpassed] = useState<boolean>(false); // Max output amount surpassed flag
 
@@ -95,6 +95,8 @@ export default function SwapForm() {
                 }
             } catch (error) {
                 console.error('Failed to fetch rates:', error);
+                setExchangeRate(null);
+                 // Optionally, set an error message or state to display to the user
             }
         }
         fetchRates();
@@ -128,7 +130,8 @@ export default function SwapForm() {
         }
 
         // Calculate input converted amount (rate * input amount) (assumes 1 USDC = 1 USD)
-        const inputConverted = parseFloat(amount) * 1;
+        const usdcUsdRate = 1; // TODO: Fetch this rate from the backend
+        const inputConverted = parseFloat(amount) * usdcUsdRate;
         setInputConvertedAmount(`$${inputConverted.toFixed(2)}`);
 
         // Handle inputs less than flat fee
@@ -138,6 +141,8 @@ export default function SwapForm() {
         } else {
             // Calculate output amount (input*rate - percentage fee - flat fee)
             const percentageFee = parseFloat(amount) * fees.percentFee;
+
+            if (!exchangeRate) throw new Error('Exchange rate not available');
             const output = parseFloat(amount) * exchangeRate - percentageFee - fees.flatFee;
 
             if (output > maxOutputAmount) {
@@ -151,12 +156,14 @@ export default function SwapForm() {
             setOutputAmount(output.toFixed(2));
 
             // Calculate output converted amount (rate * output amount) in USD (assumes 1 USDT = 1 USD)
-            const outputConverted = output * 1;
+            const usdtToUsdRate = 1; // TODO: Fetch this rate from the backend
+            const outputConverted = output * usdtToUsdRate;
             setOutputConvertedAmount(`$${outputConverted.toFixed(2)}`);
         }
     };
 
-    const isSwapDisabled = !inputAmount || !tronAddress || insufficientFunds || maxOutputSurpassed; // Disable swap if no amount, no Tron address, or insufficient funds, or max output surpassed
+    const isSwapDisabled =
+        !inputAmount || !tronAddress || insufficientFunds || maxOutputSurpassed || exchangeRate === null; // Disable swap if no amount, no Tron address, or insufficient funds, or max output surpassed
 
     async function requestSwap() {
         if (isSwapping || !inputAmount || !outputAmount) return;
