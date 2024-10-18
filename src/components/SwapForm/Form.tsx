@@ -68,8 +68,8 @@ export default function SwapForm() {
             try {
                 const response = await axios.get(`${configuration.urls.backend}/intents/information`); // Replace with your backend endpoint
                 setFees({
-                    flatFee: response.data.flatFee,
-                    percentFee: response.data.percentFee,
+                    flatFee: response.data.fees.flatFee,
+                    percentFee: response.data.fees.pctFee,
                 });
                 setMaxOutputAmount(response.data.maxOutputAmount);
             } catch (error) {
@@ -313,7 +313,7 @@ export default function SwapForm() {
                     readOnly: true, // Marking it as read-only since it's calculated
                 }}
                 convertedAmountInputProps={{
-                    placeholder: '$0',
+                    placeholder: '$0.00',
                     value: outputConvertedAmount,
                     readOnly: true, // Marking it as read-only since it's calculated
                 }}
