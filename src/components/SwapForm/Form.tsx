@@ -173,10 +173,10 @@ export default function SwapForm() {
             setInputConvertedAmount('');
         } else {
             setMaxOutputSurpassed(false);
-            // Fix: Correct calculation of input amount
-            const input = (output + fees.flatFee) / (1 - fees.percentFee);
+            // Calculate input amount and round up
+            const input = Math.ceil((output + fees.flatFee) / (1 - fees.percentFee) * 100) / 100;
             const percentageFee = Math.max(0.01, input * fees.percentFee);
-            const adjustedInput = output + fees.flatFee + percentageFee;
+            const adjustedInput = Math.ceil((output + fees.flatFee + percentageFee) * 100) / 100;
             setInputAmount(adjustedInput.toFixed(2));
             const usdcUsdRate = 1; // TODO: Fetch this rate from the backend
             const inputConverted = adjustedInput * usdcUsdRate;
