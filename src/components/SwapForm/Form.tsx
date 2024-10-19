@@ -68,8 +68,8 @@ export default function SwapForm() {
             try {
                 const response = await axios.get(`${configuration.urls.backend}/intents/information`); // Replace with your backend endpoint
                 setFees({
-                    flatFee: response.data.fees.flatFee,
-                    percentFee: response.data.fees.pctFee,
+                    flatFee: parseFloat(response.data.fees.flatFee),
+                    percentFee: parseFloat(response.data.fees.pctFee),
                 });
                 setMaxOutputAmount(response.data.maxOutputAmount);
             } catch (error) {
