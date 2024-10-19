@@ -6,18 +6,29 @@ interface SwapFormInputProps {
     buttonText?: string;
     label?: string;
 }
-
 export default function SwapFormInput({
     inputProps,
     onInsert,
-    buttonText = 'Insert',
-    label = 'Enter value',
+    buttonText = 'Paste',
 }: SwapFormInputProps) {
+    const handleInsert = async () => {
+        try {
+            const clipboardText = await navigator.clipboard.readText();
+            if (inputProps.onChange && clipboardText) {
+                const event = {
+                    target: { value: clipboardText }
+                } as React.ChangeEvent<HTMLInputElement>;
+                inputProps.onChange(event);
+            }
+        } catch (error) {
+            console.error('Failed to read clipboard contents: ', error);
+        }
+    };
+
     return (
         <label className={styles.Block}>
-            <span className={styles.VisuallyHidden}>{label}</span>
-            <input {...inputProps} className={`${styles.Input} ${inputProps.className || ''}`} aria-label={label} />
-            <button className={styles.Insert} onClick={() => onInsert?.()}>
+            <input {...inputProps} className={`${styles.Input} ${inputProps.className || ''}`} />
+            <button className={styles.Insert} onClick={handleInsert}>
                 {buttonText}
             </button>
         </label>
