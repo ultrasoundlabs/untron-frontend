@@ -63,6 +63,12 @@ $form-gap: 16px;
     cursor: not-allowed;
     background: var(--color-background-button-disabled);
     color: var(--color-text-button-disabled);
+    transition: all 0.3s ease;
+}
+
+.DisabledButton:hover,
+.DisabledButton:focus {
+    opacity: 0.8;
 }
 
 .Info {
