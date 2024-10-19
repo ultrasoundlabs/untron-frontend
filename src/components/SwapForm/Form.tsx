@@ -356,7 +356,7 @@ export default function SwapForm() {
                     </button>
                 )}
             </ConnectKitButton.Custom>
-            <p className={styles.Info}>Swaps from Tron coming soon</p>
+            <p className={`${styles.Info} ${styles.SmallInfo}`}>Swaps from Tron coming soon</p>
             <SwapFormSuccessModal transaction={transaction} onClose={() => clearTransaction()} />
             <SwapFormErrorModal error={errorMessage} onClose={() => clearErrorMessage()} />
         </div>
