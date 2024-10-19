@@ -27,14 +27,14 @@
 }
 
 .Amount {
-    color: var(--color-text-secondary);
+    color: var(--color-text-primary);
     font-size: 36px;
     line-height: 1.25em;
     font-weight: 700;
 }
 
 .ConvertedAmount {
-    color: var(--color-text-secondary);
+    color: var(--color-text-primary);
     font-size: 16px;
     line-height: 1.25em;
     font-weight: 400;
@@ -64,4 +64,6 @@
     font-size: 16px;
     line-height: 1.25em;
     font-weight: 400;
+    padding: 8px;
+    margin-top: 4px;
 }

@@ -34,7 +34,7 @@ export default function SwapForm() {
     const [fees, setFees] = useState<{ flatFee: number; percentFee: number }>({ flatFee: 0.2, percentFee: 0.001 }); // Default fees
     const [insufficientFunds, setInsufficientFunds] = useState<boolean>(false); // Insufficient funds flag
     const [errorDecodingTronAddress, setErrorDecodingTronAddress] = useState<boolean>(false); // Error decoding Tron address flag
-    const [exchangeRate, setExchangeRate] = useState<number | null>(null); // Exchange rate from origin to USDT
+    const [exchangeRate, setExchangeRate] = useState<number>(0); // Exchange rate from origin to USDT
     const [maxOutputAmount, setMaxOutputAmount] = useState<number>(100); // Maximum output amount, default 100 USDT
     const [maxOutputSurpassed, setMaxOutputSurpassed] = useState<boolean>(false); // Max output amount surpassed flag
 
@@ -64,40 +64,41 @@ export default function SwapForm() {
 
     // Fetch information from the backend
     useEffect(() => {
-        async function fetchFees() {
+        async function fetchInformation() {
             try {
                 const response = await axios.get(`${configuration.urls.backend}/intents/information`); // Replace with your backend endpoint
                 setFees({
-                    flatFee: response.data.flatFee,
-                    percentFee: response.data.percentFee,
+                    flatFee: parseFloat(response.data.fees.flatFee),
+                    percentFee: parseFloat(response.data.fees.pctFee),
                 });
                 setMaxOutputAmount(response.data.maxOutputAmount);
             } catch (error) {
-                console.error('Failed to fetch fees:', error);
+                console.error('Failed to fetch information:', error);
             }
         }
-        fetchFees();
+        fetchInformation();
     }, []);
 
     // Fetch rates from the backend
     useEffect(() => {
         async function fetchRates() {
-            try {
-                const response = await axios.get(`${configuration.urls.backend}/intents/rates`, {
-                    params: {
-                        token: configuration.contracts.base.usdc,
-                        chainId: base.id,
-                    },
-                });
-                const rate = response.data.rate;
-                if (rate) {
-                    setExchangeRate(Number(rate));
-                }
-            } catch (error) {
-                console.error('Failed to fetch rates:', error);
-                setExchangeRate(null);
-                 // Optionally, set an error message or state to display to the user
-            }
+            // try {
+            //     const response = await axios.get(`${configuration.urls.backend}/intents/rates`, {
+            //         params: {
+            //             token: configuration.contracts.base.usdc,
+            //             chainId: base.id,
+            //         },
+            //     });
+            //     const rate = response.data.rate;
+            //     if (rate) {
+            //         setExchangeRate(Number(rate));
+            //     }
+            // } catch (error) {
+            //     console.error('Failed to fetch rates:', error);
+            //     setExchangeRate(1);
+            //      // Optionally, set an error message or state to display to the user
+            // }
+            setExchangeRate(1); // only USDC on Base is currently supported and it's 1:1 to USDT
         }
         fetchRates();
     }, []);
@@ -107,63 +108,85 @@ export default function SwapForm() {
         setTronAddress(address);
     };
 
-    const handleAmountChange = (amount: string) => {
-        // Check if entered amount exceeds user's balance
-        if (address && parseFloat(amount) > userBalance) {
-            setInsufficientFunds(true);
-            setOutputAmount('');
-            setOutputConvertedAmount('');
-            setInputAmount(amount);
-            return;
-        } else {
-            setInsufficientFunds(false);
-        }
-
+    const handleInputAmountChange = (amount: string) => {
         setInputAmount(amount);
+        calculateOutputAmount(amount);
+    };
 
-        // If the input is empty or invalid, reset the converted and output amounts
-        if (Number.isNaN(parseFloat(amount)) || amount === '') {
+    const handleOutputAmountChange = (amount: string) => {
+        setOutputAmount(amount);
+        calculateInputAmount(amount);
+    };
+
+    const calculateOutputAmount = (inputAmount: string) => {
+        if (Number.isNaN(parseFloat(inputAmount)) || inputAmount === '') {
             setInputConvertedAmount('');
             setOutputAmount('');
             setOutputConvertedAmount('');
             return;
         }
 
-        // Calculate input converted amount (rate * input amount) (assumes 1 USDC = 1 USD)
+        const input = parseFloat(inputAmount);
         const usdcUsdRate = 1; // TODO: Fetch this rate from the backend
-        const inputConverted = parseFloat(amount) * usdcUsdRate;
+        const inputConverted = input * usdcUsdRate;
         setInputConvertedAmount(`$${inputConverted.toFixed(2)}`);
 
-        // Handle inputs less than flat fee
-        if (parseFloat(amount) <= fees.flatFee) {
+        if (input <= fees.flatFee) {
             setOutputAmount('0.00');
             setOutputConvertedAmount('$0.00');
         } else {
-            // Calculate output amount (input*rate - percentage fee - flat fee)
-            const percentageFee = parseFloat(amount) * fees.percentFee;
-
-            if (!exchangeRate) throw new Error('Exchange rate not available');
-            const output = parseFloat(amount) * exchangeRate - percentageFee - fees.flatFee;
+            const percentageFee = Math.max(0.01, input * fees.percentFee);
+            const output = Math.max(0, input * exchangeRate - percentageFee - fees.flatFee);
 
             if (output > maxOutputAmount) {
                 setMaxOutputSurpassed(true);
                 setOutputAmount('');
                 setOutputConvertedAmount('');
-                setInputAmount(amount);
-                return;
+            } else {
+                setMaxOutputSurpassed(false);
+                setOutputAmount(output.toFixed(2));
+                const usdtToUsdRate = 1; // TODO: Fetch this rate from the backend
+                const outputConverted = output * usdtToUsdRate;
+                setOutputConvertedAmount(`$${outputConverted.toFixed(2)}`);
             }
+        }
 
-            setOutputAmount(output.toFixed(2));
+        setInsufficientFunds(!!address && input > userBalance);
+    };
 
-            // Calculate output converted amount (rate * output amount) in USD (assumes 1 USDT = 1 USD)
-            const usdtToUsdRate = 1; // TODO: Fetch this rate from the backend
-            const outputConverted = output * usdtToUsdRate;
-            setOutputConvertedAmount(`$${outputConverted.toFixed(2)}`);
+    const calculateInputAmount = (outputAmount: string) => {
+        if (Number.isNaN(parseFloat(outputAmount)) || outputAmount === '') {
+            setInputAmount('');
+            setInputConvertedAmount('');
+            setOutputConvertedAmount('');
+            return;
+        }
+
+        const output = parseFloat(outputAmount);
+        const usdtToUsdRate = 1; // TODO: Fetch this rate from the backend
+        const outputConverted = output * usdtToUsdRate;
+        setOutputConvertedAmount(`$${outputConverted.toFixed(2)}`);
+
+        if (output > maxOutputAmount) {
+            setMaxOutputSurpassed(true);
+            setInputAmount('');
+            setInputConvertedAmount('');
+        } else {
+            setMaxOutputSurpassed(false);
+            // Calculate input amount and round up
+            const input = Math.ceil((output + fees.flatFee) / (1 - fees.percentFee) * 100) / 100;
+            const percentageFee = Math.max(0.01, input * fees.percentFee);
+            const adjustedInput = Math.ceil((output + fees.flatFee + percentageFee) * 100) / 100;
+            setInputAmount(adjustedInput.toFixed(2));
+            const usdcUsdRate = 1; // TODO: Fetch this rate from the backend
+            const inputConverted = adjustedInput * usdcUsdRate;
+            setInputConvertedAmount(`$${inputConverted.toFixed(2)}`);
+            setInsufficientFunds(!!address && adjustedInput > userBalance);
         }
     };
 
     const isSwapDisabled =
-        !inputAmount || !tronAddress || insufficientFunds || maxOutputSurpassed || exchangeRate === null; // Disable swap if no amount, no Tron address, or insufficient funds, or max output surpassed
+        !inputAmount || !tronAddress || insufficientFunds || maxOutputSurpassed || exchangeRate === 0; // Disable swap if no amount, no Tron address, or insufficient funds, or max output surpassed
 
     async function requestSwap() {
         if (isSwapping || !inputAmount || !outputAmount) return;
@@ -282,16 +305,16 @@ export default function SwapForm() {
             <SwapFormItem
                 label="You send"
                 amountInputProps={{
-                    placeholder: '0',
+                    placeholder: userBalance.toFixed(2),
                     value: inputAmount,
-                    onChange: (e) => handleAmountChange(e.target.value),
+                    onChange: (e) => handleInputAmountChange(e.target.value),
                 }}
                 convertedAmountInputProps={{
                     placeholder: '$0.00',
                     value: inputConvertedAmount,
-                    readOnly: true, // Marking it as read-only since it's calculated
+                    readOnly: true,
                 }}
-                balance={userBalance.toFixed(2)} // Display user's balance
+                balance={userBalance.toFixed(2)}
                 iconSrc="images/usdcbase.png"
                 insufficientFunds={insufficientFunds}
             />
@@ -310,15 +333,15 @@ export default function SwapForm() {
                 amountInputProps={{
                     placeholder: '0',
                     value: outputAmount,
-                    readOnly: true, // Marking it as read-only since it's calculated
+                    onChange: (e) => handleOutputAmountChange(e.target.value),
                 }}
                 convertedAmountInputProps={{
-                    placeholder: '$0',
+                    placeholder: '$0.00',
                     value: outputConvertedAmount,
-                    readOnly: true, // Marking it as read-only since it's calculated
+                    readOnly: true,
                 }}
                 iconSrc="images/usdttron.png"
-                balance="" // No balance for output
+                balance=""
                 maxOutputSurpassed={maxOutputSurpassed}
             />
             <div className={styles.Gap} />
@@ -337,7 +360,7 @@ export default function SwapForm() {
                 {({ isConnected, isConnecting, show, address }) => (
                     <button
                         className={`${styles.Button} ${isSwapDisabled && isConnected ? styles.DisabledButton : ''}`}
-                        disabled={isSwapDisabled && isConnected} // Only disable when swap conditions are not met
+                        disabled={isSwapDisabled && isConnected}
                         onClick={() => {
                             if (isConnected && address) {
                                 requestSwap();
@@ -356,7 +379,7 @@ export default function SwapForm() {
                     </button>
                 )}
             </ConnectKitButton.Custom>
-            <p className={styles.Info}>Swaps from Tron coming soon</p>
+            <p className={`${styles.Info} ${styles.SmallInfo}`}>Swaps from Tron coming soon</p>
             <SwapFormSuccessModal transaction={transaction} onClose={() => clearTransaction()} />
             <SwapFormErrorModal error={errorMessage} onClose={() => clearErrorMessage()} />
         </div>

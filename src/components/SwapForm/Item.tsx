@@ -37,11 +37,13 @@ export default function SwapFormItem({
                         />
                         {insufficientFunds && (
                             <div className={styles.InsufficientFunds}>
-                                You have insufficient funds. Your balance is {balance}
+                                You don't have enough funds.
                             </div>
                         )}
                         {maxOutputSurpassed && (
-                            <div className={styles.InsufficientFunds}>Not enough funds to cover the transaction.</div>
+                            <div className={styles.InsufficientFunds}>
+                                Not enough liquidity to cover the transaction.
+                            </div>
                         )}
                     </label>
                 </div>
