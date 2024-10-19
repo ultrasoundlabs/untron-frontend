@@ -135,7 +135,7 @@ export default function SwapForm() {
             setOutputAmount('0.00');
             setOutputConvertedAmount('$0.00');
         } else {
-            const percentageFee = input * fees.percentFee;
+            const percentageFee = Math.max(0.01, input * fees.percentFee);
             const output = Math.max(0, input * exchangeRate - percentageFee - fees.flatFee);
 
             if (output > maxOutputAmount) {
@@ -174,12 +174,14 @@ export default function SwapForm() {
         } else {
             setMaxOutputSurpassed(false);
             // Fix: Correct calculation of input amount
-            const input = (output + fees.flatFee) * (1 + fees.percentFee);
-            setInputAmount(input.toFixed(2));
+            const input = (output + fees.flatFee) / (1 - fees.percentFee);
+            const percentageFee = Math.max(0.01, input * fees.percentFee);
+            const adjustedInput = output + fees.flatFee + percentageFee;
+            setInputAmount(adjustedInput.toFixed(2));
             const usdcUsdRate = 1; // TODO: Fetch this rate from the backend
-            const inputConverted = input * usdcUsdRate;
+            const inputConverted = adjustedInput * usdcUsdRate;
             setInputConvertedAmount(`$${inputConverted.toFixed(2)}`);
-            setInsufficientFunds(!!address && input > userBalance);
+            setInsufficientFunds(!!address && adjustedInput > userBalance);
         }
     };
 
