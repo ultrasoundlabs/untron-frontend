@@ -212,10 +212,13 @@ export default function SwapForm() {
             const chainId = await walletClient.getChainId();
             // For this showcase only Base is supported
             if (chainId !== base.id) {
-                // Give descriptive error message
-                console.error('Unsupported chain:', chainId);
-                setErrorMessage('Unsupported chain');
-                return;
+                try {
+                    await walletClient.switchChain({ id: base.id });
+                } catch (error) {
+                    console.error('Failed to switch chain:', error);
+                    setErrorMessage('Failed to switch chain');
+                    return;
+                }
             }
 
             const tokenAddress = configuration.contracts.base.usdc;
