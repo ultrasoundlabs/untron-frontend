@@ -9,7 +9,7 @@ import { useState, useEffect } from 'react';
 import { useAccount, usePublicClient, useWalletClient } from 'wagmi';
 import axios from 'axios';
 import { signOrder, signPermit } from '../../eip712/signer';
-import { encodeIntent, getTokenNonce, getGaslessNonce, Intent, Order, Permit } from '../../utils/utils';
+import { getTokenNonce, getGaslessNonce, Intent, Order, Permit } from '../../utils/utils';
 import bs58check from 'bs58check';
 import { UserRejectedRequestError } from 'viem'; // Add this import to handle the error
 import { configuration } from '../../config/config';
@@ -37,6 +37,43 @@ export default function SwapForm() {
     const [exchangeRate, setExchangeRate] = useState<number>(0); // Exchange rate from origin to USDT
     const [maxOutputAmount, setMaxOutputAmount] = useState<number>(100); // Maximum output amount, default 100 USDT
     const [maxOutputSurpassed, setMaxOutputSurpassed] = useState<boolean>(false); // Max output amount surpassed flag
+    // TODO: We can use this later to enable frontend to switch
+    // between input assets
+    const [enabledAssets, setEnabledAssets] = useState<string[]>([]); // Enabled assets
+
+    // Fetch enabled assets and rates for each asset
+    useEffect(() => {
+        async function fetchInitialData() {
+            try {
+                const response = await axios.get(`${configuration.urls.backend}/intents/assets`);
+                console.log(response.data);
+                setEnabledAssets(response.data.map((asset: any) => asset.assetId));
+            } catch (error) {
+                console.error('Failed to fetch enbled assets:', error);
+                // Set default asset USDC-BASE in case BE fails
+                setEnabledAssets(['USDC-BASE']);
+            }
+
+            // TODO: When BE supports, get all rates in one call OR alternatively
+            // Fetch when user selects another asset
+            try {
+                const response = await axios.get(`${configuration.urls.backend}/rates`, {
+                    params: {
+                        assetId: 'USDC-BASE',
+                    },
+                });
+                console.log(response.data);
+                // TODO: Define exchange rate as a map [input] -> [output]
+                setExchangeRate(Number(response.data[0].rate));
+                // Set the rate for the asset
+            } catch (error) {
+                console.error('Failed to fetch rate for asset:', error);
+                // Set the rate to 1 for the asset by default in case BE fails
+                setExchangeRate(1);
+            }
+        }
+        fetchInitialData();
+    }, [publicClient]);
 
     // Fetch user balance (USDC on Base) when the component is mounted
     useEffect(() => {
@@ -67,6 +104,7 @@ export default function SwapForm() {
         async function fetchInformation() {
             try {
                 const response = await axios.get(`${configuration.urls.backend}/intents/information`); // Replace with your backend endpoint
+                console.log(response.data);
                 setFees({
                     flatFee: parseFloat(response.data.fees.flatFee),
                     percentFee: parseFloat(response.data.fees.pctFee),
@@ -77,30 +115,6 @@ export default function SwapForm() {
             }
         }
         fetchInformation();
-    }, []);
-
-    // Fetch rates from the backend
-    useEffect(() => {
-        async function fetchRates() {
-            // try {
-            //     const response = await axios.get(`${configuration.urls.backend}/intents/rates`, {
-            //         params: {
-            //             token: configuration.contracts.base.usdc,
-            //             chainId: base.id,
-            //         },
-            //     });
-            //     const rate = response.data.rate;
-            //     if (rate) {
-            //         setExchangeRate(Number(rate));
-            //     }
-            // } catch (error) {
-            //     console.error('Failed to fetch rates:', error);
-            //     setExchangeRate(1);
-            //      // Optionally, set an error message or state to display to the user
-            // }
-            setExchangeRate(1); // only USDC on Base is currently supported and it's 1:1 to USDT
-        }
-        fetchRates();
     }, []);
 
     const handleAddressChange = (address: string) => {
@@ -174,7 +188,7 @@ export default function SwapForm() {
         } else {
             setMaxOutputSurpassed(false);
             // Calculate input amount and round up
-            const input = Math.ceil((output + fees.flatFee) / (1 - fees.percentFee) * 100) / 100;
+            const input = Math.ceil(((output + fees.flatFee) / (1 - fees.percentFee)) * 100) / 100;
             const percentageFee = Math.max(0.01, input * fees.percentFee);
             const adjustedInput = Math.ceil((output + fees.flatFee + percentageFee) * 100) / 100;
             setInputAmount(adjustedInput.toFixed(2));
@@ -258,15 +272,25 @@ export default function SwapForm() {
                 intent: intent,
             };
             const orderSignature = await signOrder(walletClient, chainId, contractAddress, order);
-            const orderData = encodeIntent(intent);
 
+            console.log('here');
+            console.log('orderSignature', orderSignature);
             const response = await axios.post(`${configuration.urls.backend}/intents/permitted-gasless-order`, {
                 user: address,
                 openDeadline: order.openDeadline.toString(),
                 fillDeadline: order.fillDeadline.toString(),
                 nonce: order.nonce.toString(),
-                orderData: orderData,
+                intent: {
+                    refundBeneficiary: intent.refundBeneficiary,
+                    inputs: intent.inputs.map((input) => ({
+                        token: input.token,
+                        amount: input.amount.toString(),
+                    })),
+                    to: intent.to,
+                    outputAmount: intent.outputAmount.toString(),
+                },
                 signature: orderSignature,
+                chainId: chainId,
                 tokenPermits: [
                     {
                         deadline: permit.deadline.toString(),
@@ -276,6 +300,7 @@ export default function SwapForm() {
                     },
                 ],
             });
+            console.log('here');
 
             setTransaction({
                 url: `https://basescan.org/tx/${response.data}`,

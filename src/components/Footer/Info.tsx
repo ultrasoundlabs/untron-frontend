@@ -16,8 +16,11 @@ export default function FooterInfo() {
             <br />
             In the full version, multiple coins and networks will be supported.
             <br />
-            <br />
-            © 2024 <a href="https://github.com/ultrasoundlabs" target="_blank" rel="noopener noreferrer">Ultrasound Labs LLC</a> — all rights reserved
+            <br />© 2024{' '}
+            <a href="https://github.com/ultrasoundlabs" target="_blank" rel="noopener noreferrer">
+                Ultrasound Labs LLC
+            </a>{' '}
+            — all rights reserved
         </p>
     );
 }
