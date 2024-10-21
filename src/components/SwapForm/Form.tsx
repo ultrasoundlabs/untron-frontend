@@ -46,7 +46,6 @@ export default function SwapForm() {
         async function fetchInitialData() {
             try {
                 const response = await axios.get(`${configuration.urls.backend}/intents/assets`);
-                console.log(response.data);
                 setEnabledAssets(response.data.map((asset: any) => asset.assetId));
             } catch (error) {
                 console.error('Failed to fetch enbled assets:', error);
@@ -62,7 +61,6 @@ export default function SwapForm() {
                         assetId: 'USDC-BASE',
                     },
                 });
-                console.log(response.data);
                 // TODO: Define exchange rate as a map [input] -> [output]
                 setExchangeRate(Number(response.data[0].rate));
                 // Set the rate for the asset
@@ -104,7 +102,6 @@ export default function SwapForm() {
         async function fetchInformation() {
             try {
                 const response = await axios.get(`${configuration.urls.backend}/intents/information`); // Replace with your backend endpoint
-                console.log(response.data);
                 setFees({
                     flatFee: parseFloat(response.data.fees.flatFee),
                     percentFee: parseFloat(response.data.fees.pctFee),
@@ -273,8 +270,6 @@ export default function SwapForm() {
             };
             const orderSignature = await signOrder(walletClient, chainId, contractAddress, order);
 
-            console.log('here');
-            console.log('orderSignature', orderSignature);
             const response = await axios.post(`${configuration.urls.backend}/intents/permitted-gasless-order`, {
                 user: address,
                 openDeadline: order.openDeadline.toString(),
@@ -300,7 +295,6 @@ export default function SwapForm() {
                     },
                 ],
             });
-            console.log('here');
 
             setTransaction({
                 url: `https://basescan.org/tx/${response.data}`,
