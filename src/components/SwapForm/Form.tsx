@@ -31,14 +31,15 @@ export default function SwapForm() {
     const [outputConvertedAmount, setOutputConvertedAmount] = useState<string>(''); // Converted output amount state
     const [tronAddress, setTronAddress] = useState<string>(''); // Tron address state
     const [userBalance, setUserBalance] = useState<number>(0); // User's balance in Base
-    const [fees, setFees] = useState<{ flatFee: number; percentFee: number }>({ flatFee: 0.2, percentFee: 0.001 }); // Default fees
+    // TODO: If we want to avoid fetching fees for each chain, we can store them and then when switching chains we just get the fees from the stored object
+    const [fees, setFees] = useState<{ [chainId: string]: { name: string; chainId: number; flatFee: number; percentFee: number } }>({}); // Fees
+    const [currentChainFees, setCurrentChainFees] = useState<{ flatFee: number; percentFee: number }>({ flatFee: 0, percentFee: 0 }); // Current chain fees
     const [insufficientFunds, setInsufficientFunds] = useState<boolean>(false); // Insufficient funds flag
     const [errorDecodingTronAddress, setErrorDecodingTronAddress] = useState<boolean>(false); // Error decoding Tron address flag
     const [exchangeRate, setExchangeRate] = useState<number>(0); // Exchange rate from origin to USDT
     const [maxOutputAmount, setMaxOutputAmount] = useState<number>(100); // Maximum output amount, default 100 USDT
     const [maxOutputSurpassed, setMaxOutputSurpassed] = useState<boolean>(false); // Max output amount surpassed flag
-    // TODO: We can use this later to enable frontend to switch
-    // between input assets
+    // TODO: We can use this later to enable frontend to switch between input assets
     const [enabledAssets, setEnabledAssets] = useState<string[]>([]); // Enabled assets
 
     // Fetch enabled assets and rates for each asset
@@ -102,9 +103,24 @@ export default function SwapForm() {
         async function fetchInformation() {
             try {
                 const response = await axios.get(`${configuration.urls.backend}/intents/information`); // Replace with your backend endpoint
-                setFees({
-                    flatFee: parseFloat(response.data.fees.flatFee),
-                    percentFee: parseFloat(response.data.fees.pctFee),
+                const networkFees = response.data.fees.reduce((acc: any, fee: any) => {
+                    acc[fee.chainId] = {
+                        name: fee.network,
+                        chainId: fee.chainId,
+                        flatFee: Number(fee.flatFee),
+                        percentFee: Number(fee.pctFee),
+                    };
+                    return acc;
+                }, {});
+                setFees(networkFees);
+
+                console.log(walletClient);
+                const chainId = await walletClient!.getChainId();
+                console.log(chainId);
+                console.log(networkFees);
+                setCurrentChainFees({
+                    flatFee: networkFees[chainId].flatFee,
+                    percentFee: networkFees[chainId].percentFee,
                 });
                 setMaxOutputAmount(response.data.maxOutputAmount);
             } catch (error) {
@@ -112,7 +128,7 @@ export default function SwapForm() {
             }
         }
         fetchInformation();
-    }, []);
+    }, [walletClient]);
 
     const handleAddressChange = (address: string) => {
         setErrorDecodingTronAddress(false);
@@ -142,12 +158,12 @@ export default function SwapForm() {
         const inputConverted = input * usdcUsdRate;
         setInputConvertedAmount(`$${inputConverted.toFixed(2)}`);
 
-        if (input <= fees.flatFee) {
+        if (input <= currentChainFees.flatFee) {
             setOutputAmount('0.00');
             setOutputConvertedAmount('$0.00');
         } else {
-            const percentageFee = Math.max(0.01, input * fees.percentFee);
-            const output = Math.max(0, input * exchangeRate - percentageFee - fees.flatFee);
+            const percentageFee = Math.max(0.01, input * currentChainFees.percentFee);
+            const output = Math.max(0, input * exchangeRate - percentageFee - currentChainFees.flatFee);
 
             if (output > maxOutputAmount) {
                 setMaxOutputSurpassed(true);
@@ -185,9 +201,9 @@ export default function SwapForm() {
         } else {
             setMaxOutputSurpassed(false);
             // Calculate input amount and round up
-            const input = Math.ceil(((output + fees.flatFee) / (1 - fees.percentFee)) * 100) / 100;
-            const percentageFee = Math.max(0.01, input * fees.percentFee);
-            const adjustedInput = Math.ceil((output + fees.flatFee + percentageFee) * 100) / 100;
+            const input = Math.ceil(((output + currentChainFees.flatFee) / (1 - currentChainFees.percentFee)) * 100) / 100;
+            const percentageFee = Math.max(0.01, input * currentChainFees.percentFee);
+            const adjustedInput = Math.ceil((output + currentChainFees.flatFee + percentageFee) * 100) / 100;
             setInputAmount(adjustedInput.toFixed(2));
             const usdcUsdRate = 1; // TODO: Fetch this rate from the backend
             const inputConverted = adjustedInput * usdcUsdRate;
