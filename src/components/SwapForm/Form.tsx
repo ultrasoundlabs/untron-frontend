@@ -9,7 +9,7 @@ import { useState, useEffect } from 'react';
 import { useAccount, usePublicClient, useWalletClient } from 'wagmi';
 import axios from 'axios';
 import { signOrder, signPermit } from '../../eip712/signer';
-import { encodeIntent, getTokenNonce, getGaslessNonce, Intent, Order, Permit } from '../../utils/utils';
+import { getTokenNonce, getGaslessNonce, Intent, Order, Permit } from '../../utils/utils';
 import bs58check from 'bs58check';
 import { UserRejectedRequestError } from 'viem'; // Add this import to handle the error
 import { configuration } from '../../config/config';
@@ -31,12 +31,48 @@ export default function SwapForm() {
     const [outputConvertedAmount, setOutputConvertedAmount] = useState<string>(''); // Converted output amount state
     const [tronAddress, setTronAddress] = useState<string>(''); // Tron address state
     const [userBalance, setUserBalance] = useState<number>(0); // User's balance in Base
-    const [fees, setFees] = useState<{ flatFee: number; percentFee: number }>({ flatFee: 0.2, percentFee: 0.001 }); // Default fees
+    // TODO: If we want to avoid fetching fees for each chain, we can store them and then when switching chains we just get the fees from the stored object
+    const [fees, setFees] = useState<{ [chainId: string]: { name: string; chainId: number; flatFee: number; percentFee: number } }>({}); // Fees
+    const [currentChainFees, setCurrentChainFees] = useState<{ flatFee: number; percentFee: number }>({ flatFee: 0, percentFee: 0 }); // Current chain fees
     const [insufficientFunds, setInsufficientFunds] = useState<boolean>(false); // Insufficient funds flag
     const [errorDecodingTronAddress, setErrorDecodingTronAddress] = useState<boolean>(false); // Error decoding Tron address flag
     const [exchangeRate, setExchangeRate] = useState<number>(0); // Exchange rate from origin to USDT
     const [maxOutputAmount, setMaxOutputAmount] = useState<number>(100); // Maximum output amount, default 100 USDT
     const [maxOutputSurpassed, setMaxOutputSurpassed] = useState<boolean>(false); // Max output amount surpassed flag
+    // TODO: We can use this later to enable frontend to switch between input assets
+    const [enabledAssets, setEnabledAssets] = useState<string[]>([]); // Enabled assets
+
+    // Fetch enabled assets and rates for each asset
+    useEffect(() => {
+        async function fetchInitialData() {
+            try {
+                const response = await axios.get(`${configuration.urls.backend}/intents/assets`);
+                setEnabledAssets(response.data.map((asset: any) => asset.assetId));
+            } catch (error) {
+                console.error('Failed to fetch enbled assets:', error);
+                // Set default asset USDC-BASE in case BE fails
+                setEnabledAssets(['USDC-BASE']);
+            }
+
+            // TODO: When BE supports, get all rates in one call OR alternatively
+            // Fetch when user selects another asset
+            try {
+                const response = await axios.get(`${configuration.urls.backend}/rates`, {
+                    params: {
+                        assetId: 'USDC-BASE',
+                    },
+                });
+                // TODO: Define exchange rate as a map [input] -> [output]
+                setExchangeRate(Number(response.data[0].rate));
+                // Set the rate for the asset
+            } catch (error) {
+                console.error('Failed to fetch rate for asset:', error);
+                // Set the rate to 1 for the asset by default in case BE fails
+                setExchangeRate(1);
+            }
+        }
+        fetchInitialData();
+    }, [publicClient]);
 
     // Fetch user balance (USDC on Base) when the component is mounted
     useEffect(() => {
@@ -67,9 +103,24 @@ export default function SwapForm() {
         async function fetchInformation() {
             try {
                 const response = await axios.get(`${configuration.urls.backend}/intents/information`); // Replace with your backend endpoint
-                setFees({
-                    flatFee: parseFloat(response.data.fees.flatFee),
-                    percentFee: parseFloat(response.data.fees.pctFee),
+                const networkFees = response.data.fees.reduce((acc: any, fee: any) => {
+                    acc[fee.chainId] = {
+                        name: fee.network,
+                        chainId: fee.chainId,
+                        flatFee: Number(fee.flatFee),
+                        percentFee: Number(fee.pctFee),
+                    };
+                    return acc;
+                }, {});
+                setFees(networkFees);
+
+                console.log(walletClient);
+                const chainId = await walletClient!.getChainId();
+                console.log(chainId);
+                console.log(networkFees);
+                setCurrentChainFees({
+                    flatFee: networkFees[chainId].flatFee,
+                    percentFee: networkFees[chainId].percentFee,
                 });
                 setMaxOutputAmount(response.data.maxOutputAmount);
             } catch (error) {
@@ -77,31 +128,7 @@ export default function SwapForm() {
             }
         }
         fetchInformation();
-    }, []);
-
-    // Fetch rates from the backend
-    useEffect(() => {
-        async function fetchRates() {
-            // try {
-            //     const response = await axios.get(`${configuration.urls.backend}/intents/rates`, {
-            //         params: {
-            //             token: configuration.contracts.base.usdc,
-            //             chainId: base.id,
-            //         },
-            //     });
-            //     const rate = response.data.rate;
-            //     if (rate) {
-            //         setExchangeRate(Number(rate));
-            //     }
-            // } catch (error) {
-            //     console.error('Failed to fetch rates:', error);
-            //     setExchangeRate(1);
-            //      // Optionally, set an error message or state to display to the user
-            // }
-            setExchangeRate(1); // only USDC on Base is currently supported and it's 1:1 to USDT
-        }
-        fetchRates();
-    }, []);
+    }, [walletClient]);
 
     const handleAddressChange = (address: string) => {
         setErrorDecodingTronAddress(false);
@@ -131,12 +158,12 @@ export default function SwapForm() {
         const inputConverted = input * usdcUsdRate;
         setInputConvertedAmount(`$${inputConverted.toFixed(2)}`);
 
-        if (input <= fees.flatFee) {
+        if (input <= currentChainFees.flatFee) {
             setOutputAmount('0.00');
             setOutputConvertedAmount('$0.00');
         } else {
-            const percentageFee = Math.max(0.01, input * fees.percentFee);
-            const output = Math.max(0, input * exchangeRate - percentageFee - fees.flatFee);
+            const percentageFee = Math.max(0.01, input * currentChainFees.percentFee);
+            const output = Math.max(0, input * exchangeRate - percentageFee - currentChainFees.flatFee);
 
             if (output > maxOutputAmount) {
                 setMaxOutputSurpassed(true);
@@ -174,9 +201,9 @@ export default function SwapForm() {
         } else {
             setMaxOutputSurpassed(false);
             // Calculate input amount and round up
-            const input = Math.ceil((output + fees.flatFee) / (1 - fees.percentFee) * 100) / 100;
-            const percentageFee = Math.max(0.01, input * fees.percentFee);
-            const adjustedInput = Math.ceil((output + fees.flatFee + percentageFee) * 100) / 100;
+            const input = Math.ceil(((output + currentChainFees.flatFee) / (1 - currentChainFees.percentFee)) * 100) / 100;
+            const percentageFee = Math.max(0.01, input * currentChainFees.percentFee);
+            const adjustedInput = Math.ceil((output + currentChainFees.flatFee + percentageFee) * 100) / 100;
             setInputAmount(adjustedInput.toFixed(2));
             const usdcUsdRate = 1; // TODO: Fetch this rate from the backend
             const inputConverted = adjustedInput * usdcUsdRate;
@@ -258,15 +285,23 @@ export default function SwapForm() {
                 intent: intent,
             };
             const orderSignature = await signOrder(walletClient, chainId, contractAddress, order);
-            const orderData = encodeIntent(intent);
 
             const response = await axios.post(`${configuration.urls.backend}/intents/permitted-gasless-order`, {
                 user: address,
                 openDeadline: order.openDeadline.toString(),
                 fillDeadline: order.fillDeadline.toString(),
                 nonce: order.nonce.toString(),
-                orderData: orderData,
+                intent: {
+                    refundBeneficiary: intent.refundBeneficiary,
+                    inputs: intent.inputs.map((input) => ({
+                        token: input.token,
+                        amount: input.amount.toString(),
+                    })),
+                    to: intent.to,
+                    outputAmount: intent.outputAmount.toString(),
+                },
                 signature: orderSignature,
+                chainId: chainId,
                 tokenPermits: [
                     {
                         deadline: permit.deadline.toString(),

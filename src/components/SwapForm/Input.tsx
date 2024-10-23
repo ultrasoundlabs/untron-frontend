@@ -6,17 +6,13 @@ interface SwapFormInputProps {
     buttonText?: string;
     label?: string;
 }
-export default function SwapFormInput({
-    inputProps,
-    onInsert,
-    buttonText = 'Paste',
-}: SwapFormInputProps) {
+export default function SwapFormInput({ inputProps, onInsert, buttonText = 'Paste' }: SwapFormInputProps) {
     const handleInsert = async () => {
         try {
             const clipboardText = await navigator.clipboard.readText();
             if (inputProps.onChange && clipboardText) {
                 const event = {
-                    target: { value: clipboardText }
+                    target: { value: clipboardText },
                 } as React.ChangeEvent<HTMLInputElement>;
                 inputProps.onChange(event);
             }

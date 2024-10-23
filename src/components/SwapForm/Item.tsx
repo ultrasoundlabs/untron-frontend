@@ -36,9 +36,7 @@ export default function SwapFormItem({
                             aria-label={`${label} converted amount`}
                         />
                         {insufficientFunds && (
-                            <div className={styles.InsufficientFunds}>
-                                You don't have enough funds.
-                            </div>
+                            <div className={styles.InsufficientFunds}>You don't have enough funds.</div>
                         )}
                         {maxOutputSurpassed && (
                             <div className={styles.InsufficientFunds}>
