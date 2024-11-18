@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { QrReader } from 'react-qr-reader';
+import { useState, useEffect } from 'react';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 import styles from './Input.module.scss';
 
 interface SwapFormInputProps {
@@ -29,26 +29,51 @@ export default function SwapFormInput({
         }
     };
 
-    const handleScan = (result: any) => {
-        if (result && inputProps.onChange) {
-            const event = {
-                target: { value: result.text },
-            } as React.ChangeEvent<HTMLInputElement>;
-            inputProps.onChange(event);
-            setShowScanner(false);
-        }
-    };
+    useEffect(() => {
+        let scanner: Html5QrcodeScanner | null = null;
 
-    // Reset hasScanned when scanner is opened
-    const handleOpenScanner = () => {
-        setShowScanner(true);
-    };
+        if (showScanner) {
+            scanner = new Html5QrcodeScanner(
+                "qr-reader", 
+                { 
+                    fps: 10,
+                    qrbox: {width: 250, height: 250},
+                    aspectRatio: 1.0
+                },
+                false
+            );
+
+            scanner.render((decodedText) => {
+                // Success callback
+                if (inputProps.onChange) {
+                    const event = {
+                        target: { value: decodedText },
+                    } as React.ChangeEvent<HTMLInputElement>;
+                    inputProps.onChange(event);
+                }
+                setShowScanner(false);
+                scanner?.clear();
+            }, (error) => {
+                // Error callback
+                console.warn(`QR Code scanning failed: ${error}`);
+            });
+        }
+
+        // Cleanup
+        return () => {
+            if (scanner) {
+                scanner.clear().catch(error => {
+                    console.error('Failed to clear scanner', error);
+                });
+            }
+        };
+    }, [showScanner, inputProps.onChange]);
 
     return (
         <div className={styles.InputWrapper}>
             <label className={styles.Block}>
                 <input {...inputProps} className={`${styles.Input} ${inputProps.className || ''}`} />
-                <button className={styles.QrButton} onClick={() => handleOpenScanner()}>
+                <button className={styles.QrButton} onClick={() => setShowScanner(true)}>
                     <img src="/images/qr-code.png" alt="Scan QR" />
                 </button>
                 <button className={styles.Insert} onClick={handleInsert}>
@@ -61,16 +86,11 @@ export default function SwapFormInput({
                     <div className={styles.ScannerContainer}>
                         <button 
                             className={styles.CloseButton}
-                            onClick={() => {
-                                setShowScanner(false);
-                            }}
+                            onClick={() => setShowScanner(false)}
                         >
                             ×
                         </button>
-                        <QrReader
-                            onResult={handleScan}
-                            constraints={{ facingMode: 'environment' }}
-                        />
+                        <div id="qr-reader"></div>
                     </div>
                 </div>
             )}
