@@ -89,7 +89,7 @@ export default function SwapForm() {
                     network.tokens.map((token: any) => ({
                         key: `${network.chain_id}-${token.token_address.toLowerCase()}`,
                         symbol: token.symbol,
-                        icon: token.icon,
+                        icon: `${configuration.urls.backend}/public/${network.chain_id}-${token.token_address.toLowerCase()}.png`,
                         network: network.network,
                         chainId: network.chain_id,
                         contractAddress: network.contract_address,
