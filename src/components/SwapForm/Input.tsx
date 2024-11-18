@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { useState } from 'react';
 import styles from './Input.module.scss';
+import { Scanner } from '@yudiel/react-qr-scanner';
 
 interface SwapFormInputProps {
     inputProps: React.InputHTMLAttributes<HTMLInputElement>;
@@ -29,46 +29,6 @@ export default function SwapFormInput({
         }
     };
 
-    useEffect(() => {
-        let scanner: Html5QrcodeScanner | null = null;
-
-        if (showScanner) {
-            scanner = new Html5QrcodeScanner(
-                "qr-reader", 
-                { 
-                    fps: 10,
-                    qrbox: {width: 250, height: 250},
-                    aspectRatio: 1.0
-                },
-                false
-            );
-
-            scanner.render((decodedText) => {
-                // Success callback
-                if (inputProps.onChange) {
-                    const event = {
-                        target: { value: decodedText },
-                    } as React.ChangeEvent<HTMLInputElement>;
-                    inputProps.onChange(event);
-                }
-                setShowScanner(false);
-                scanner?.clear();
-            }, (error) => {
-                // Error callback
-                console.warn(`QR Code scanning failed: ${error}`);
-            });
-        }
-
-        // Cleanup
-        return () => {
-            if (scanner) {
-                scanner.clear().catch(error => {
-                    console.error('Failed to clear scanner', error);
-                });
-            }
-        };
-    }, [showScanner, inputProps.onChange]);
-
     return (
         <div className={styles.InputWrapper}>
             <label className={styles.Block}>
@@ -90,7 +50,19 @@ export default function SwapFormInput({
                         >
                             ×
                         </button>
-                        <div id="qr-reader"></div>
+                        <Scanner
+                            onScan={(result) => {
+                                if (inputProps.onChange && result[0]?.rawValue) {
+                                    const event = {
+                                        target: { value: result[0].rawValue },
+                                    } as React.ChangeEvent<HTMLInputElement>;
+                                    inputProps.onChange(event);
+                                    setShowScanner(false);
+                                }
+                            }}
+                            onError={(error) => console.warn(`QR Code scanning failed: ${error}`)}
+                            formats={['qr_code']}
+                        />
                     </div>
                 </div>
             )}
