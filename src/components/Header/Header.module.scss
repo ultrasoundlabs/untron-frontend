@@ -4,10 +4,20 @@
     align-items: center;
     gap: 50px;
     padding-bottom: 50px;
+
+    @media (max-width: 600px) {
+        flex-direction: column;
+        gap: 20px;
+        padding-bottom: 30px;
+    }
 }
 
 .Logo {
     height: 58px;
+
+    @media (max-width: 600px) {
+        height: 48px;
+    }
 }
 
 .DocsLink {
@@ -16,4 +26,8 @@
     line-height: 1.25em;
     font-weight: 400;
     cursor: pointer;
+
+    @media (max-width: 600px) {
+        font-size: 18px;
+    }
 }
