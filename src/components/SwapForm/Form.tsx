@@ -9,9 +9,9 @@ import { useState, useEffect } from 'react';
 import { useAccount, usePublicClient, useWalletClient } from 'wagmi';
 import axios from 'axios';
 import { signOrder, signPermit } from '../../eip712/signer';
-import { getTokenNonce, getGaslessNonce, Intent, Order, Permit } from '../../utils/utils';
+import { getTokenNonce, Intent, Order, Permit } from '../../utils/utils';
 import bs58check from 'bs58check';
-import { UserRejectedRequestError } from 'viem'; // Add this import to handle the error
+import { UserRejectedRequestError } from 'viem';
 import { configuration } from '../../config/config';
 import { base } from 'viem/chains';
 
@@ -22,59 +22,73 @@ export default function SwapForm() {
     });
     const publicClient = usePublicClient();
 
-    const [transaction, setTransaction] = useState<any>(null);
     const [isSwapping, setIsSwapping] = useState<boolean>(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
-    const [inputAmount, setInputAmount] = useState<string>(''); // Input amount state
-    const [inputConvertedAmount, setInputConvertedAmount] = useState<string>(''); // Converted input amount state
-    const [outputAmount, setOutputAmount] = useState<string>(''); // Output amount state
-    const [outputConvertedAmount, setOutputConvertedAmount] = useState<string>(''); // Converted output amount state
-    const [tronAddress, setTronAddress] = useState<string>(''); // Tron address state
-    const [userBalance, setUserBalance] = useState<number>(0); // User's balance in Base
-    // TODO: If we want to avoid fetching fees for each chain, we can store them and then when switching chains we just get the fees from the stored object
-    const [fees, setFees] = useState<{ [chainId: string]: { name: string; chainId: number; flatFee: number; percentFee: number } }>({}); // Fees
-    const [currentChainFees, setCurrentChainFees] = useState<{ flatFee: number; percentFee: number }>({ flatFee: 0, percentFee: 0 }); // Current chain fees
-    const [insufficientFunds, setInsufficientFunds] = useState<boolean>(false); // Insufficient funds flag
-    const [errorDecodingTronAddress, setErrorDecodingTronAddress] = useState<boolean>(false); // Error decoding Tron address flag
-    const [exchangeRate, setExchangeRate] = useState<number>(0); // Exchange rate from origin to USDT
-    const [maxOutputAmount, setMaxOutputAmount] = useState<number>(100); // Maximum output amount, default 100 USDT
-    const [maxOutputSurpassed, setMaxOutputSurpassed] = useState<boolean>(false); // Max output amount surpassed flag
-    // TODO: We can use this later to enable frontend to switch between input assets
-    const [enabledAssets, setEnabledAssets] = useState<string[]>([]); // Enabled assets
+    const [inputAmount, setInputAmount] = useState<string>('');
+    const [inputConvertedAmount, setInputConvertedAmount] = useState<string>('');
+    const [outputAmount, setOutputAmount] = useState<string>('');
+    const [outputConvertedAmount, setOutputConvertedAmount] = useState<string>('');
+    const [tronAddress, setTronAddress] = useState<string>('');
+    const [userBalance, setUserBalance] = useState<number>(0);
+    const [fees, setFees] = useState<{
+        [chainId: number]: { symbol: string; network: string; chainId: number; flatFee: number; percentFee: number };
+    }>({});
+    const [currentChainFees, setCurrentChainFees] = useState<{ flatFee: number; percentFee: number }>({
+        flatFee: 0,
+        percentFee: 0,
+    });
+    const [insufficientFunds, setInsufficientFunds] = useState<boolean>(false);
+    const [errorDecodingTronAddress, setErrorDecodingTronAddress] = useState<boolean>(false);
+    const [exchangeRate, setExchangeRate] = useState<number>(0);
+    const [maxOutputAmount, setMaxOutputAmount] = useState<number>(100);
+    const [maxOutputSurpassed, setMaxOutputSurpassed] = useState<boolean>(false);
+    const [enabledAssets, setEnabledAssets] = useState<
+        Array<{
+            symbol: string;
+            network: string;
+            chainId: number;
+            tokenAddress: `0x${string}`;
+            decimals: number;
+            icon: string;
+        }>
+    >([]);
 
     // Fetch enabled assets and rates for each asset
     useEffect(() => {
         async function fetchInitialData() {
             try {
-                const response = await axios.get(`${configuration.urls.backend}/intents/assets`);
-                setEnabledAssets(response.data.map((asset: any) => asset.assetId));
-            } catch (error) {
-                console.error('Failed to fetch enbled assets:', error);
-                // Set default asset USDC-BASE in case BE fails
-                setEnabledAssets(['USDC-BASE']);
-            }
+                const assetsResponse = await axios.get(`${configuration.urls.backend}/intents/assets`);
+                setEnabledAssets(assetsResponse.data);
 
-            // TODO: When BE supports, get all rates in one call OR alternatively
-            // Fetch when user selects another asset
-            try {
-                const response = await axios.get(`${configuration.urls.backend}/rates`, {
-                    params: {
-                        assetId: 'USDC-BASE',
-                    },
-                });
-                // TODO: Define exchange rate as a map [input] -> [output]
-                setExchangeRate(Number(response.data[0].rate));
-                // Set the rate for the asset
+                const ratesResponse = await axios.get(`${configuration.urls.backend}/intents/rates`);
+                // Assuming the rate for USDC on Base is in the response
+                const usdcBaseRate = ratesResponse.data.find(
+                    (rate: any) =>
+                        rate.fromToken.chainId === base.id &&
+                        rate.fromToken.tokenAddress.toLowerCase() ===
+                            configuration.contracts.base.usdc.toLowerCase()
+                );
+                setExchangeRate(usdcBaseRate ? Number(usdcBaseRate.rate) : 1);
             } catch (error) {
-                console.error('Failed to fetch rate for asset:', error);
-                // Set the rate to 1 for the asset by default in case BE fails
+                console.error('Failed to fetch enabled assets or rates:', error);
+                // Set default asset and rate in case BE fails
+                setEnabledAssets([
+                    {
+                        symbol: 'USDC',
+                        network: 'Base',
+                        chainId: base.id,
+                        tokenAddress: configuration.contracts.base.usdc,
+                        decimals: 6,
+                        icon: 'images/usdcbase.png',
+                    },
+                ]);
                 setExchangeRate(1);
             }
         }
         fetchInitialData();
-    }, [publicClient]);
+    }, []);
 
-    // Fetch user balance (USDC on Base) when the component is mounted
+    // Fetch user balance
     useEffect(() => {
         async function fetchBalance() {
             if (publicClient && address) {
@@ -102,27 +116,28 @@ export default function SwapForm() {
     useEffect(() => {
         async function fetchInformation() {
             try {
-                const response = await axios.get(`${configuration.urls.backend}/intents/information`); // Replace with your backend endpoint
-                const networkFees = response.data.fees.reduce((acc: any, fee: any) => {
+                const informationResponse = await axios.get(`${configuration.urls.backend}/intents/information`);
+                const networkFees = informationResponse.data.fees.reduce((acc: any, fee: any) => {
                     acc[fee.chainId] = {
-                        name: fee.network,
+                        symbol: fee.symbol,
+                        network: fee.network,
                         chainId: fee.chainId,
                         flatFee: Number(fee.flatFee),
-                        percentFee: Number(fee.pctFee),
+                        percentFee: Number(fee.percentFee),
                     };
                     return acc;
                 }, {});
                 setFees(networkFees);
 
-                console.log(walletClient);
-                const chainId = await walletClient!.getChainId();
-                console.log(chainId);
-                console.log(networkFees);
-                setCurrentChainFees({
-                    flatFee: networkFees[chainId].flatFee,
-                    percentFee: networkFees[chainId].percentFee,
-                });
-                setMaxOutputAmount(response.data.maxOutputAmount);
+                if (walletClient) {
+                    const chainId = await walletClient.getChainId();
+                    setCurrentChainFees({
+                        flatFee: networkFees[chainId]?.flatFee || 0,
+                        percentFee: networkFees[chainId]?.percentFee || 0,
+                    });
+                }
+
+                setMaxOutputAmount(informationResponse.data.maxOutputAmount);
             } catch (error) {
                 console.error('Failed to fetch information:', error);
             }
@@ -154,7 +169,7 @@ export default function SwapForm() {
         }
 
         const input = parseFloat(inputAmount);
-        const usdcUsdRate = 1; // TODO: Fetch this rate from the backend
+        const usdcUsdRate = 1; // Assuming USDC is pegged to USD
         const inputConverted = input * usdcUsdRate;
         setInputConvertedAmount(`$${inputConverted.toFixed(2)}`);
 
@@ -172,7 +187,7 @@ export default function SwapForm() {
             } else {
                 setMaxOutputSurpassed(false);
                 setOutputAmount(output.toFixed(2));
-                const usdtToUsdRate = 1; // TODO: Fetch this rate from the backend
+                const usdtToUsdRate = 1; // Assuming USDT is pegged to USD
                 const outputConverted = output * usdtToUsdRate;
                 setOutputConvertedAmount(`$${outputConverted.toFixed(2)}`);
             }
@@ -190,7 +205,7 @@ export default function SwapForm() {
         }
 
         const output = parseFloat(outputAmount);
-        const usdtToUsdRate = 1; // TODO: Fetch this rate from the backend
+        const usdtToUsdRate = 1; // Assuming USDT is pegged to USD
         const outputConverted = output * usdtToUsdRate;
         setOutputConvertedAmount(`$${outputConverted.toFixed(2)}`);
 
@@ -200,12 +215,12 @@ export default function SwapForm() {
             setInputConvertedAmount('');
         } else {
             setMaxOutputSurpassed(false);
-            // Calculate input amount and round up
             const input = Math.ceil(((output + currentChainFees.flatFee) / (1 - currentChainFees.percentFee)) * 100) / 100;
             const percentageFee = Math.max(0.01, input * currentChainFees.percentFee);
-            const adjustedInput = Math.ceil((output + currentChainFees.flatFee + percentageFee) * 100) / 100;
+            const adjustedInput =
+                Math.ceil((output + currentChainFees.flatFee + percentageFee) * 100) / 100;
             setInputAmount(adjustedInput.toFixed(2));
-            const usdcUsdRate = 1; // TODO: Fetch this rate from the backend
+            const usdcUsdRate = 1; // Assuming USDC is pegged to USD
             const inputConverted = adjustedInput * usdcUsdRate;
             setInputConvertedAmount(`$${inputConverted.toFixed(2)}`);
             setInsufficientFunds(!!address && adjustedInput > userBalance);
@@ -213,7 +228,7 @@ export default function SwapForm() {
     };
 
     const isSwapDisabled =
-        !inputAmount || !tronAddress || insufficientFunds || maxOutputSurpassed || exchangeRate === 0; // Disable swap if no amount, no Tron address, or insufficient funds, or max output surpassed
+        !inputAmount || !tronAddress || insufficientFunds || maxOutputSurpassed || exchangeRate === 0;
 
     async function requestSwap() {
         if (isSwapping || !inputAmount || !outputAmount) return;
@@ -227,7 +242,7 @@ export default function SwapForm() {
         // Try to decode the Tron address
         let decodedTronAddress;
         try {
-            decodedTronAddress = '0x' + Buffer.from(bs58check.decode(tronAddress)).toString('hex');
+            decodedTronAddress = '0x' + Buffer.from(bs58check.decode(tronAddress)).toString('hex').slice(2);
         } catch (error) {
             console.error('Invalid Tron address:', error);
             setErrorDecodingTronAddress(true);
@@ -237,23 +252,23 @@ export default function SwapForm() {
 
         try {
             const chainId = await walletClient.getChainId();
-            // For this showcase only Base is supported
             if (chainId !== base.id) {
                 try {
                     await walletClient.switchChain({ id: base.id });
                 } catch (error) {
                     console.error('Failed to switch chain:', error);
                     setErrorMessage('Failed to switch chain');
+                    setIsSwapping(false);
                     return;
                 }
             }
 
             const tokenAddress = configuration.contracts.base.usdc;
             const contractAddress = configuration.contracts.base.untronIntents;
-            const spender = contractAddress; // The contract is the spender
-            const value = BigInt(Math.floor(parseFloat(inputAmount) * 1e6)); // Convert inputAmount to BigInt
-            const outputValue = BigInt(Math.floor(parseFloat(outputAmount) * 1e6)); // Convert outputAmount to BigInt
-            const deadline = BigInt(Math.floor(Date.now() / 1000) + 3600); // 1 hour from now
+            const spender = contractAddress;
+            const value = BigInt(Math.floor(parseFloat(inputAmount) * 1e6));
+            const outputValue = BigInt(Math.floor(parseFloat(outputAmount) * 1e6));
+            const deadline = BigInt(Math.floor(Date.now() / 1000) + 3600);
 
             // Get the nonce
             const tokenNonce = await getTokenNonce(publicClient, chainId, tokenAddress, address);
@@ -267,7 +282,7 @@ export default function SwapForm() {
             };
             const permitSignature = await signPermit(walletClient, chainId, tokenAddress, permit, tokenNonce);
 
-            const gaslessNonce = await getGaslessNonce(publicClient, chainId, contractAddress, address);
+            const gaslessNonce = await getTokenNonce(publicClient, chainId, contractAddress, address);
 
             const intent: Intent = {
                 refundBeneficiary: address,
@@ -281,45 +296,35 @@ export default function SwapForm() {
                 nonce: gaslessNonce,
                 originChainId: chainId,
                 openDeadline: BigInt(Math.floor(Date.now() / 1000) + 600), // 10 minutes from now
-                fillDeadline: BigInt(Math.floor(Date.now() / 1000) + 21600), // 6 hour from now
+                fillDeadline: BigInt(Math.floor(Date.now() / 1000) + 21600), // 6 hours from now
                 intent: intent,
             };
             const orderSignature = await signOrder(walletClient, chainId, contractAddress, order);
 
-            const response = await axios.post(`${configuration.urls.backend}/intents/permitted-gasless-order`, {
-                user: address,
-                openDeadline: order.openDeadline.toString(),
-                fillDeadline: order.fillDeadline.toString(),
-                nonce: order.nonce.toString(),
-                intent: {
-                    refundBeneficiary: intent.refundBeneficiary,
-                    inputs: intent.inputs.map((input) => ({
-                        token: input.token,
-                        amount: input.amount.toString(),
-                    })),
-                    to: intent.to,
-                    outputAmount: intent.outputAmount.toString(),
-                },
-                signature: orderSignature,
+            await axios.post(`${configuration.urls.backend}/intents/swap`, {
+                userAddress: address,
                 chainId: chainId,
-                tokenPermits: [
-                    {
-                        deadline: permit.deadline.toString(),
-                        v: permitSignature.v,
-                        r: permitSignature.r,
-                        s: permitSignature.s,
-                    },
-                ],
+                tokenAddress: tokenAddress,
+                amount: inputAmount,
+                toTronAddress: tronAddress,
+                nonce: order.nonce.toString(),
+                signature: orderSignature,
+                permit: {
+                    deadline: permit.deadline.toString(),
+                    v: permitSignature.v,
+                    r: permitSignature.r,
+                    s: permitSignature.s,
+                },
             });
 
-            setTransaction({
-                url: `https://basescan.org/tx/${response.data}`,
-            });
+            // Swap completed successfully
+            setErrorMessage(null);
+            // Optionally, you can display a success message or update the UI accordingly
         } catch (error: any) {
             console.error('Error during swap:', error);
             if (error instanceof UserRejectedRequestError) {
                 setErrorMessage('Transaction was rejected by the user.');
-            } else if (error instanceof axios.AxiosError) {
+            } else if (axios.isAxiosError(error)) {
                 setErrorMessage(`API error: ${error.response?.data?.message || error.message}`);
             } else if (error instanceof Error) {
                 setErrorMessage(`Swap error: ${error.message}`);
@@ -331,9 +336,6 @@ export default function SwapForm() {
         }
     }
 
-    function clearTransaction() {
-        setTransaction(null);
-    }
     function clearErrorMessage() {
         setErrorMessage(null);
     }
@@ -418,7 +420,6 @@ export default function SwapForm() {
                 )}
             </ConnectKitButton.Custom>
             <p className={`${styles.Info} ${styles.SmallInfo}`}>Swaps from Tron coming soon</p>
-            <SwapFormSuccessModal transaction={transaction} onClose={() => clearTransaction()} />
             <SwapFormErrorModal error={errorMessage} onClose={() => clearErrorMessage()} />
         </div>
     );
