@@ -1,5 +1,31 @@
 import styles from './Item.module.scss';
 
+// Update the Right section to handle both selectable and fixed assets consistently
+const AssetDisplay = ({ 
+  icon, 
+  onClick, 
+  disableAssetSelection 
+}: { 
+  icon: string; 
+  onClick: () => void;
+  disableAssetSelection?: boolean;
+}) => {
+  return (
+    <button 
+      className={styles.AssetButton}
+      onClick={onClick}
+      disabled={disableAssetSelection}
+    >
+      <img src={icon} alt="Token icon" />
+      <span className={styles.DropdownIndicator}>
+        <svg width="12" height="8" viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </span>
+    </button>
+  );
+};
+
 export default function SwapFormItem({
     label,
     amountInputProps,
@@ -8,6 +34,10 @@ export default function SwapFormItem({
     iconSrc,
     insufficientFunds,
     maxOutputSurpassed,
+    assetOptions,
+    selectedAssetKey,
+    onAssetChange,
+    disableAssetSelection = false,
 }: {
     label: string;
     amountInputProps: JSX.IntrinsicElements['input'];
@@ -16,7 +46,17 @@ export default function SwapFormItem({
     iconSrc: string;
     insufficientFunds?: boolean;
     maxOutputSurpassed?: boolean;
+    assetOptions: Array<{
+        key: string;
+        symbol: string;
+        icon: string;
+    }>;
+    selectedAssetKey: string;
+    onAssetChange: (key: string) => void;
+    disableAssetSelection?: boolean;
 }) {
+    const selectedAsset = assetOptions.find((asset) => asset.key === selectedAssetKey);
+
     return (
         <div className={styles.Block} role="group" aria-labelledby={`${label}-label`}>
             <div className={styles.Row}>
@@ -46,7 +86,15 @@ export default function SwapFormItem({
                     </label>
                 </div>
                 <div className={styles.Right}>
-                    <img src={iconSrc} alt={`${label} icon`} height={58} width={58} />
+                    <AssetDisplay
+                        icon={disableAssetSelection ? iconSrc : (selectedAsset?.icon || '')}
+                        onClick={() => {
+                            if (selectedAsset) {
+                                onAssetChange(selectedAsset.key);
+                            }
+                        }}
+                        disableAssetSelection={disableAssetSelection}
+                    />
                 </div>
             </div>
         </div>

@@ -13,7 +13,6 @@ import { getTokenNonce, Intent, Order, Permit } from '../../utils/utils';
 import bs58check from 'bs58check';
 import { UserRejectedRequestError } from 'viem';
 import { configuration } from '../../config/config';
-import { base } from 'viem/chains';
 
 export default function SwapForm() {
     const { address } = useAccount();
@@ -31,15 +30,36 @@ export default function SwapForm() {
     const [tronAddress, setTronAddress] = useState<string>('');
     const [userBalance, setUserBalance] = useState<number>(0);
     const [fees, setFees] = useState<{
-        [chainId: number]: { symbol: string; network: string; chainId: number; flatFee: number; percentFee: number };
+        [key: string]: {
+            symbol: string;
+            network: string;
+            chainId: number;
+            flatFee: number;
+            percentFee: number;
+            contractAddress: `0x${string}`;
+            tokenAddress: `0x${string}`;
+            decimals: number;
+            icon: string;
+        };
     }>({});
-    const [currentChainFees, setCurrentChainFees] = useState<{ flatFee: number; percentFee: number }>({
+    const [currentChainFees, setCurrentChainFees] = useState<{
+        flatFee: number;
+        percentFee: number;
+        contractAddress: `0x${string}`;
+        tokenAddress: `0x${string}`;
+        decimals: number;
+    }>({
         flatFee: 0,
         percentFee: 0,
+        contractAddress: '' as `0x${string}`,
+        tokenAddress: '' as `0x${string}`,
+        decimals: 6,
     });
     const [insufficientFunds, setInsufficientFunds] = useState<boolean>(false);
     const [errorDecodingTronAddress, setErrorDecodingTronAddress] = useState<boolean>(false);
-    const [exchangeRate, setExchangeRate] = useState<number>(0);
+    const [exchangeRates, setExchangeRates] = useState<{
+        [key: string]: number;
+    }>({});
     const [maxOutputAmount, setMaxOutputAmount] = useState<number>(100);
     const [maxOutputSurpassed, setMaxOutputSurpassed] = useState<boolean>(false);
     const [enabledAssets, setEnabledAssets] = useState<
@@ -47,53 +67,138 @@ export default function SwapForm() {
             symbol: string;
             network: string;
             chainId: number;
+            contractAddress: `0x${string}`;
             tokenAddress: `0x${string}`;
             decimals: number;
             icon: string;
+            flatFee: number;
+            percentFee: number;
         }>
     >([]);
+    const [selectedInputAsset, setSelectedInputAsset] = useState<string>('');
 
-    // Fetch enabled assets and rates for each asset
+    // Fetch information from the backend
     useEffect(() => {
-        async function fetchInitialData() {
+        async function fetchInformation() {
             try {
-                const assetsResponse = await axios.get(`${configuration.urls.backend}/intents/assets`);
-                setEnabledAssets(assetsResponse.data);
+                const informationResponse = await axios.get(`${configuration.urls.backend}/intents/information`);
+                const data = informationResponse.data;
 
-                const ratesResponse = await axios.get(`${configuration.urls.backend}/intents/rates`);
-                // Assuming the rate for USDC on Base is in the response
-                const usdcBaseRate = ratesResponse.data.find(
-                    (rate: any) =>
-                        rate.fromToken.chainId === base.id &&
-                        rate.fromToken.tokenAddress.toLowerCase() ===
-                            configuration.contracts.base.usdc.toLowerCase()
+                // Map tokens from supported_networks
+                const mappedAssets = data.supported_networks.flatMap((network: any) =>
+                    network.tokens.map((token: any) => ({
+                        key: `${network.chain_id}-${token.token_address.toLowerCase()}`,
+                        symbol: token.symbol,
+                        icon: token.icon,
+                        network: network.network,
+                        chainId: network.chain_id,
+                        contractAddress: network.contract_address,
+                        tokenAddress: token.token_address,
+                        decimals: token.decimals,
+                        flatFee: Number(token.flat_fee),
+                        percentFee: Number(token.percent_fee),
+                    }))
                 );
-                setExchangeRate(usdcBaseRate ? Number(usdcBaseRate.rate) : 1);
+                setEnabledAssets(mappedAssets);
+
+                if (mappedAssets.length > 0) {
+                    const defaultAssetKey = `${mappedAssets[0].chainId}-${mappedAssets[0].tokenAddress.toLowerCase()}`;
+                    setSelectedInputAsset(defaultAssetKey);
+                }
+
+                // Build fees map
+                const networkFees: {
+                    [key: string]: {
+                        symbol: string;
+                        network: string;
+                        chainId: number;
+                        flatFee: number;
+                        percentFee: number;
+                        contractAddress: `0x${string}`;
+                        tokenAddress: `0x${string}`;
+                        decimals: number;
+                        icon: string;
+                    };
+                } = {};
+                mappedAssets.forEach((asset: {
+                    symbol: string;
+                    network: string;
+                    chainId: number;
+                    contractAddress: `0x${string}`;
+                    tokenAddress: `0x${string}`;
+                    decimals: number;
+                    icon: string;
+                    flatFee: number;
+                    percentFee: number;
+                }) => {
+                    const key = `${asset.chainId}-${asset.tokenAddress.toLowerCase()}`;
+                    networkFees[key] = {
+                        symbol: asset.symbol,
+                        network: asset.network,
+                        chainId: asset.chainId,
+                        flatFee: asset.flatFee,
+                        percentFee: asset.percentFee,
+                        contractAddress: asset.contractAddress as `0x${string}`,
+                        tokenAddress: asset.tokenAddress as `0x${string}`,
+                        decimals: asset.decimals,
+                        icon: asset.icon,
+                    };
+                });
+                setFees(networkFees);
+
+                const maxOutputAmount = data.max_output_amount;
+                setMaxOutputAmount(maxOutputAmount);
+
+                if (selectedInputAsset) {
+                    const asset = networkFees[selectedInputAsset];
+                    if (asset) {
+                        setCurrentChainFees({
+                            flatFee: asset.flatFee,
+                            percentFee: asset.percentFee,
+                            contractAddress: asset.contractAddress,
+                            tokenAddress: asset.tokenAddress,
+                            decimals: asset.decimals,
+                        });
+                    }
+                }
             } catch (error) {
-                console.error('Failed to fetch enabled assets or rates:', error);
-                // Set default asset and rate in case BE fails
-                setEnabledAssets([
-                    {
-                        symbol: 'USDC',
-                        network: 'Base',
-                        chainId: base.id,
-                        tokenAddress: configuration.contracts.base.usdc,
-                        decimals: 6,
-                        icon: 'images/usdcbase.png',
-                    },
-                ]);
-                setExchangeRate(1);
+                console.error('Failed to fetch information:', error);
             }
         }
-        fetchInitialData();
-    }, []);
+        fetchInformation();
+    }, [selectedInputAsset]);
+
+    // Fetch exchange rate when the token is selected
+    useEffect(() => {
+        async function fetchExchangeRate() {
+            if (selectedInputAsset) {
+                try {
+                    const feeData = fees[selectedInputAsset];
+                    if (feeData) {
+                        const tokenAddress = feeData.tokenAddress;
+                        const ratesResponse = await axios.get(
+                            `${configuration.urls.backend}/intents/rates?token=${tokenAddress}`
+                        );
+                        const rate = ratesResponse.data.rate;
+                        setExchangeRates((prevRates) => ({
+                            ...prevRates,
+                            [selectedInputAsset]: Number(rate),
+                        }));
+                    }
+                } catch (error) {
+                    console.error('Failed to fetch exchange rate:', error);
+                }
+            }
+        }
+        fetchExchangeRate();
+    }, [selectedInputAsset]);
 
     // Fetch user balance
     useEffect(() => {
         async function fetchBalance() {
-            if (publicClient && address) {
+            if (publicClient && address && currentChainFees.tokenAddress) {
                 const balance = await publicClient.readContract({
-                    address: configuration.contracts.base.usdc,
+                    address: currentChainFees.tokenAddress,
                     abi: [
                         {
                             constant: true,
@@ -106,108 +211,74 @@ export default function SwapForm() {
                     functionName: 'balanceOf',
                     args: [address],
                 });
-                setUserBalance(Number(balance) / 1e6); // Convert to USDC (assuming 6 decimals)
+                setUserBalance(Number(balance) / 10 ** currentChainFees.decimals); // Adjust based on token decimals
             }
         }
         fetchBalance();
-    }, [publicClient, address]);
-
-    // Fetch information from the backend
-    useEffect(() => {
-        async function fetchInformation() {
-            try {
-                const informationResponse = await axios.get(`${configuration.urls.backend}/intents/information`);
-                const networkFees = informationResponse.data.fees.reduce((acc: any, fee: any) => {
-                    acc[fee.chainId] = {
-                        symbol: fee.symbol,
-                        network: fee.network,
-                        chainId: fee.chainId,
-                        flatFee: Number(fee.flatFee),
-                        percentFee: Number(fee.percentFee),
-                    };
-                    return acc;
-                }, {});
-                setFees(networkFees);
-
-                if (walletClient) {
-                    const chainId = await walletClient.getChainId();
-                    setCurrentChainFees({
-                        flatFee: networkFees[chainId]?.flatFee || 0,
-                        percentFee: networkFees[chainId]?.percentFee || 0,
-                    });
-                }
-
-                setMaxOutputAmount(informationResponse.data.maxOutputAmount);
-            } catch (error) {
-                console.error('Failed to fetch information:', error);
-            }
-        }
-        fetchInformation();
-    }, [walletClient]);
+    }, [publicClient, address, currentChainFees.tokenAddress]);
 
     const handleAddressChange = (address: string) => {
         setErrorDecodingTronAddress(false);
         setTronAddress(address);
     };
 
-    const handleInputAmountChange = (amount: string) => {
-        setInputAmount(amount);
-        calculateOutputAmount(amount);
+    const handleInputAmountChange = (value: string) => {
+        setInputAmount(value);
+        calculateOutputAmount(value);
     };
 
-    const handleOutputAmountChange = (amount: string) => {
-        setOutputAmount(amount);
-        calculateInputAmount(amount);
+    const handleOutputAmountChange = (value: string) => {
+        setOutputAmount(value);
+        calculateInputAmount(value);
     };
 
-    const calculateOutputAmount = (inputAmount: string) => {
-        if (Number.isNaN(parseFloat(inputAmount)) || inputAmount === '') {
-            setInputConvertedAmount('');
+    const calculateOutputAmount = (inputValue: string) => {
+        if (!inputValue || parseFloat(inputValue) <= 0 || !selectedInputAsset) {
             setOutputAmount('');
             setOutputConvertedAmount('');
             return;
         }
 
-        const input = parseFloat(inputAmount);
-        const usdcUsdRate = 1; // Assuming USDC is pegged to USD
-        const inputConverted = input * usdcUsdRate;
+        const input = parseFloat(inputValue);
+        const assetRate = exchangeRates[selectedInputAsset] || 1;
+        const inputConverted = input * assetRate;
         setInputConvertedAmount(`$${inputConverted.toFixed(2)}`);
 
-        if (input <= currentChainFees.flatFee) {
-            setOutputAmount('0.00');
-            setOutputConvertedAmount('$0.00');
-        } else {
-            const percentageFee = Math.max(0.01, input * currentChainFees.percentFee);
-            const output = Math.max(0, input * exchangeRate - percentageFee - currentChainFees.flatFee);
+        const feeData = fees[selectedInputAsset];
+        if (!feeData) return;
 
-            if (output > maxOutputAmount) {
-                setMaxOutputSurpassed(true);
-                setOutputAmount('');
-                setOutputConvertedAmount('');
-            } else {
-                setMaxOutputSurpassed(false);
-                setOutputAmount(output.toFixed(2));
-                const usdtToUsdRate = 1; // Assuming USDT is pegged to USD
-                const outputConverted = output * usdtToUsdRate;
-                setOutputConvertedAmount(`$${outputConverted.toFixed(2)}`);
-            }
+        const percentageFee = Math.max(0.01, input * feeData.percentFee);
+        const output =
+            Math.floor((input - percentageFee - feeData.flatFee + Number.EPSILON) * 100) / 100;
+        setOutputAmount(output.toFixed(2));
+
+        const usdtUsdRate = 1; // Assuming USDT is pegged to USD
+        const outputConverted = output * usdtUsdRate;
+        setOutputConvertedAmount(`$${outputConverted.toFixed(2)}`);
+
+        if (output > maxOutputAmount) {
+            setMaxOutputSurpassed(true);
+        } else {
+            setMaxOutputSurpassed(false);
         }
 
         setInsufficientFunds(!!address && input > userBalance);
     };
 
-    const calculateInputAmount = (outputAmount: string) => {
-        if (Number.isNaN(parseFloat(outputAmount)) || outputAmount === '') {
+    const calculateInputAmount = (outputValue: string) => {
+        if (!outputValue || parseFloat(outputValue) <= 0 || !selectedInputAsset) {
             setInputAmount('');
             setInputConvertedAmount('');
-            setOutputConvertedAmount('');
             return;
         }
 
-        const output = parseFloat(outputAmount);
-        const usdtToUsdRate = 1; // Assuming USDT is pegged to USD
-        const outputConverted = output * usdtToUsdRate;
+        const output = parseFloat(outputValue);
+        const usdtUsdRate = 1; // Assuming USDT is pegged to USD
+        const outputConverted = output * usdtUsdRate;
         setOutputConvertedAmount(`$${outputConverted.toFixed(2)}`);
+
+        const feeData = fees[selectedInputAsset];
+        if (!feeData) return;
 
         if (output > maxOutputAmount) {
             setMaxOutputSurpassed(true);
@@ -215,20 +286,32 @@ export default function SwapForm() {
             setInputConvertedAmount('');
         } else {
             setMaxOutputSurpassed(false);
-            const input = Math.ceil(((output + currentChainFees.flatFee) / (1 - currentChainFees.percentFee)) * 100) / 100;
-            const percentageFee = Math.max(0.01, input * currentChainFees.percentFee);
+            const input =
+                Math.ceil(((output + feeData.flatFee) / (1 - feeData.percentFee)) * 100) / 100;
+            const percentageFee = Math.max(0.01, input * feeData.percentFee);
             const adjustedInput =
-                Math.ceil((output + currentChainFees.flatFee + percentageFee) * 100) / 100;
+                Math.ceil((output + feeData.flatFee + percentageFee) * 100) / 100;
             setInputAmount(adjustedInput.toFixed(2));
-            const usdcUsdRate = 1; // Assuming USDC is pegged to USD
-            const inputConverted = adjustedInput * usdcUsdRate;
+
+            const assetRate = exchangeRates[selectedInputAsset] || 1;
+            const inputConverted = adjustedInput * assetRate;
             setInputConvertedAmount(`$${inputConverted.toFixed(2)}`);
+
             setInsufficientFunds(!!address && adjustedInput > userBalance);
         }
     };
 
+    const handleInputAssetChange = (key: string) => {
+        setSelectedInputAsset(key);
+        setInputAmount('');
+        setInputConvertedAmount('');
+        setOutputAmount('');
+        setOutputConvertedAmount('');
+        setExchangeRates({});
+    };
+
     const isSwapDisabled =
-        !inputAmount || !tronAddress || insufficientFunds || maxOutputSurpassed || exchangeRate === 0;
+        !inputAmount || !tronAddress || insufficientFunds || maxOutputSurpassed;
 
     async function requestSwap() {
         if (isSwapping || !inputAmount || !outputAmount) return;
@@ -251,10 +334,20 @@ export default function SwapForm() {
         }
 
         try {
-            const chainId = await walletClient.getChainId();
-            if (chainId !== base.id) {
+            const feeData = fees[selectedInputAsset];
+            if (!feeData) {
+                setErrorMessage('Failed to retrieve fee data');
+                setIsSwapping(false);
+                return;
+            }
+
+            const chainId = feeData.chainId;
+
+            // Switch chain if necessary
+            const currentChainId = await walletClient.getChainId();
+            if (currentChainId !== chainId) {
                 try {
-                    await walletClient.switchChain({ id: base.id });
+                    await walletClient.switchChain({ id: chainId });
                 } catch (error) {
                     console.error('Failed to switch chain:', error);
                     setErrorMessage('Failed to switch chain');
@@ -263,11 +356,12 @@ export default function SwapForm() {
                 }
             }
 
-            const tokenAddress = configuration.contracts.base.usdc;
-            const contractAddress = configuration.contracts.base.untronIntents;
+            const tokenAddress = feeData.tokenAddress;
+            const contractAddress = feeData.contractAddress;
             const spender = contractAddress;
-            const value = BigInt(Math.floor(parseFloat(inputAmount) * 1e6));
-            const outputValue = BigInt(Math.floor(parseFloat(outputAmount) * 1e6));
+            const decimals = feeData.decimals;
+            const value = BigInt(Math.floor(parseFloat(inputAmount) * 10 ** decimals));
+            const outputValue = BigInt(Math.floor(parseFloat(outputAmount) * 1e6)); // Assuming USDT has 6 decimals
             const deadline = BigInt(Math.floor(Date.now() / 1000) + 3600);
 
             // Get the nonce
@@ -355,8 +449,15 @@ export default function SwapForm() {
                     readOnly: true,
                 }}
                 balance={userBalance.toFixed(2)}
-                iconSrc="images/usdcbase.png"
+                iconSrc={fees[selectedInputAsset]?.icon}
                 insufficientFunds={insufficientFunds}
+                assetOptions={Object.keys(fees).map((key) => ({
+                    key,
+                    symbol: fees[key].symbol,
+                    icon: fees[key].icon,
+                }))}
+                selectedAssetKey={selectedInputAsset}
+                onAssetChange={handleInputAssetChange}
             />
             <div className={styles.SwapArrowContainer}>
                 <button className={styles.SwapArrow}>
@@ -383,6 +484,16 @@ export default function SwapForm() {
                 iconSrc="images/usdttron.png"
                 balance=""
                 maxOutputSurpassed={maxOutputSurpassed}
+                assetOptions={[
+                    {
+                        key: 'USDT-TRON',
+                        symbol: 'USDT',
+                        icon: 'images/usdttron.png',
+                    },
+                ]}
+                selectedAssetKey='USDT-TRON'
+                onAssetChange={() => {}} // Output asset is fixed for now
+                disableAssetSelection={true}
             />
             <div className={styles.Gap} />
             <SwapFormInput
@@ -399,7 +510,9 @@ export default function SwapForm() {
             <ConnectKitButton.Custom>
                 {({ isConnected, isConnecting, show, address }) => (
                     <button
-                        className={`${styles.Button} ${isSwapDisabled && isConnected ? styles.DisabledButton : ''}`}
+                        className={`${styles.Button} ${
+                            isSwapDisabled && isConnected ? styles.DisabledButton : ''
+                        }`}
                         disabled={isSwapDisabled && isConnected}
                         onClick={() => {
                             if (isConnected && address) {
