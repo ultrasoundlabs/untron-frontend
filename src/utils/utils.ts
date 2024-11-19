@@ -245,10 +245,6 @@ export function encodeIntent(intent: Intent): `0x${string}` {
         intent.outputAmount,
     ]);
 
-    const offsetEncodedIntent = (
-        '0x0000000000000000000000000000000000000000000000000000000000000020' +
-        encodedIntent.slice(2)
-    ) as `0x${string}`;
-
+    const offsetEncodedIntent = encodedIntent;
     return offsetEncodedIntent;
 }
