@@ -6,7 +6,7 @@ export type Input = {
     amount: bigint; // Amount of tokens
 };
 
-export type Order = {
+export type GaslessCrossChainOrder = {
     originSettler: `0x${string}`; // Contract address
     user: `0x${string}`; // User's address
     nonce: bigint; // Nonce to prevent replay attacks
@@ -37,7 +37,6 @@ export async function getTokenNonce(
     tokenAddress: `0x${string}`,
     owner: `0x${string}`,
 ): Promise<bigint> {
-    console.log(chainId);
     const data = await publicClient.readContract({
         address: tokenAddress,
         chainId,
@@ -84,105 +83,161 @@ export async function getGaslessNonce(
     return BigInt(data.toString());
 }
 
-export function generateOrderId(order: Order): `0x${string}` {
-    /*
-        // Create output array with USDT TRC20 on Tron
-        Output[] memory minReceived = new Output[](1);
-        minReceived[0] = Output(USDT_TRC20, intent.outputAmount, bytes32(uint256(uint168(intent.to))), TRON_COINID);
+export async function generateOrderId(
+    publicClient: any,
+    chainId: number,
+    untronIntentsAddress: `0x${string}`,
+    order: GaslessCrossChainOrder
+): Promise<`0x${string}`> {
+    const encodedIntent = encodeIntent(order.intent);
 
-        // Create fill instruction to send output to settlement address on Tron
-        FillInstruction[] memory fillInstructions = new FillInstruction[](1);
-        fillInstructions[0] = FillInstruction(TRON_COINID, TRON_SETTLEMENT_ADDRESS, "");
+    const formattedOrder = {
+        originSettler: order.originSettler,
+        user: order.user,
+        nonce: order.nonce,
+        originChainId: order.originChainId,
+        openDeadline: order.openDeadline,
+        fillDeadline: order.fillDeadline,
+        orderData: encodedIntent,
+    };
 
-        return ResolvedCrossChainOrder({
-            user: intent.refundBeneficiary,
-            originChainId: _chainId(),
-            openDeadline: type(uint32).max,
-            fillDeadline: fillDeadline,
-            maxSpent: intent.inputs,
-            minReceived: minReceived,
-            fillInstructions: fillInstructions
-        });
-    */
+    const resolvedOrder = await publicClient.readContract({
+        address: untronIntentsAddress,
+        chainId,
+        abi: [
+            {
+                inputs: [
+                    {
+                        components: [
+                            { name: 'originSettler', type: 'address' },
+                            { name: 'user', type: 'address' },
+                            { name: 'nonce', type: 'uint256' },
+                            { name: 'originChainId', type: 'uint64' },
+                            { name: 'openDeadline', type: 'uint32' },
+                            { name: 'fillDeadline', type: 'uint32' },
+                            { name: 'orderData', type: 'bytes' },
+                        ],
+                        name: 'order',
+                        type: 'tuple',
+                    },
+                    {
+                        name: '',
+                        type: 'bytes',
+                    },
+                ],
+                name: 'resolveFor',
+                outputs: [
+                    {
+                        components: [
+                            { name: 'user', type: 'address' },
+                            { name: 'originChainId', type: 'uint64' },
+                            { name: 'openDeadline', type: 'uint32' },
+                            { name: 'fillDeadline', type: 'uint32' },
+                            {
+                                name: 'maxSpent',
+                                type: 'tuple[]',
+                                components: [
+                                    { name: 'token', type: 'address' },
+                                    { name: 'amount', type: 'uint256' },
+                                ],
+                            },
+                            {
+                                name: 'minReceived',
+                                type: 'tuple[]',
+                                components: [
+                                    { name: 'token', type: 'bytes32' },
+                                    { name: 'amount', type: 'uint256' },
+                                    { name: 'recipient', type: 'bytes32' },
+                                    { name: 'chainId', type: 'uint32' },
+                                ],
+                            },
+                            {
+                                name: 'fillInstructions',
+                                type: 'tuple[]',
+                                components: [
+                                    { name: 'chainId', type: 'uint32' },
+                                    { name: 'target', type: 'bytes32' },
+                                    { name: 'data', type: 'bytes' },
+                                ],
+                            },
+                        ],
+                        name: '',
+                        type: 'tuple',
+                    },
+                ],
+                stateMutability: 'view',
+                type: 'function',
+            },
+        ],
+        functionName: 'resolveFor',
+        args: [formattedOrder, '0x'],
+    });
 
-    //  bytes32 orderId = keccak256(abi.encode(resolvedOrder));
-    const MAX_UINT32 = Math.pow(2, 32) - 1;
-    const resolvedCrossChainOrderTypes = [
-        { type: 'address', name: 'user' },
-        { type: 'uint64', name: 'originChainId' },
-        { type: 'uint32', name: 'openDeadline' },
-        { type: 'uint32', name: 'fillDeadline' },
-        {
-            type: 'tuple[]',
-            name: 'maxSpent',
-            components: [{ type: 'address' }, { type: 'uint256' }],
-        },
-        {
-            type: 'tuple[]',
-            name: 'minReceived',
-            components: [{ type: 'bytes32' }, { type: 'uint256' }, { type: 'bytes32' }, { type: 'uint32' }],
-        },
-        {
-            type: 'tuple[]',
-            name: 'fillInstructions',
-            components: [{ type: 'uint32' }, { type: 'bytes32' }, { type: 'bytes' }],
-        },
-    ];
-
-    const maxSpent = [] as [`0x${string}`, bigint][]; // Tuple array for inputs
-    for (const input of order.intent.inputs) {
-        maxSpent.push([input.token, input.amount]);
-    }
-
-    const minReceived = [] as [`0x${string}`, bigint, `0x${string}`, number][]; // Tuple array for inputs
-    minReceived.push([
-        '0x000000000000000000000041a614f803b6fd780986a42c78ec9c7f77e6ded13c' as `0x${string}`,
-        order.intent.outputAmount,
-        `0x${order.intent.to.slice(2).padStart(64, '0')}` as `0x${string}`,
-        0x800000c3,
-    ]);
-
-    const fillInstructions = [] as [number, `0x${string}`, `0x${string}`][]; // Tuple array for inputs
-    fillInstructions.push([0x800000c3, `0x${'0'.repeat(64)}` as `0x${string}`, '0x' as `0x${string}`]);
-
-    const encodedResolvedCrossChainOrder = encodeAbiParameters(resolvedCrossChainOrderTypes, [
-        order.user,
-        BigInt(order.originChainId),
-        MAX_UINT32,
-        order.fillDeadline,
-        maxSpent,
-        minReceived,
-        fillInstructions,
-    ]);
-
-    // Hash the encoded order to get the order ID
-    // TODO: See if this is the correct way or if we should do something in the sc instead :shrug:
-    // Add offset of 32 bytes
-    const offsetEncodedResolvedCrossChainOrder = ('0x0000000000000000000000000000000000000000000000000000000000000020' +
-        encodedResolvedCrossChainOrder.slice(2)) as `0x${string}`;
-
-    return keccak256(offsetEncodedResolvedCrossChainOrder);
+    return keccak256(
+        encodeAbiParameters(
+            [
+                {
+                    type: 'tuple',
+                    components: [
+                        { name: 'user', type: 'address' },
+                        { name: 'originChainId', type: 'uint64' },
+                        { name: 'openDeadline', type: 'uint32' },
+                        { name: 'fillDeadline', type: 'uint32' },
+                        {
+                            name: 'maxSpent',
+                            type: 'tuple[]',
+                            components: [
+                                { name: 'token', type: 'address' },
+                                { name: 'amount', type: 'uint256' },
+                            ],
+                        },
+                        {
+                            name: 'minReceived',
+                            type: 'tuple[]',
+                            components: [
+                                { name: 'token', type: 'bytes32' },
+                                { name: 'amount', type: 'uint256' },
+                                { name: 'recipient', type: 'bytes32' },
+                                { name: 'chainId', type: 'uint32' },
+                            ],
+                        },
+                        {
+                            name: 'fillInstructions',
+                            type: 'tuple[]',
+                            components: [
+                                { name: 'chainId', type: 'uint32' },
+                                { name: 'target', type: 'bytes32' },
+                                { name: 'data', type: 'bytes' },
+                            ],
+                        },
+                    ],
+                },
+            ],
+            [resolvedOrder]
+        )
+    ) as `0x${string}`;
 }
 
 export function encodeIntent(intent: Intent): `0x${string}` {
-    // Define the ABI types for encoding the intent parameters
     const intentAbiTypes = [
         { type: 'address', name: 'refundBeneficiary' },
         {
             type: 'tuple[]',
             name: 'inputs',
-            components: [{ type: 'address' }, { type: 'uint256' }],
+            components: [
+                { name: 'token', type: 'address' },
+                { name: 'amount', type: 'uint256' },
+            ],
         },
         { type: 'bytes21', name: 'to' },
         { type: 'uint256', name: 'outputAmount' },
     ];
 
     const intentInputs = [] as [`0x${string}`, bigint][]; // Tuple array for inputs
-    for (const input of intent.inputs) {
+    for (const input of intent.inputs || []) {
         intentInputs.push([input.token, input.amount]);
     }
 
-    // Encode the intent parameters using viem's `encodeAbiParameters`
     const encodedIntent = encodeAbiParameters(intentAbiTypes, [
         intent.refundBeneficiary,
         intentInputs,
@@ -190,8 +245,10 @@ export function encodeIntent(intent: Intent): `0x${string}` {
         intent.outputAmount,
     ]);
 
-    const offsetEncodedIntent = ('0x0000000000000000000000000000000000000000000000000000000000000020' +
-        encodedIntent.slice(2)) as `0x${string}`;
-    // Convert the encoded intent to hexadecimal format (starts with '0x')
+    const offsetEncodedIntent = (
+        '0x0000000000000000000000000000000000000000000000000000000000000020' +
+        encodedIntent.slice(2)
+    ) as `0x${string}`;
+
     return offsetEncodedIntent;
 }

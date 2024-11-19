@@ -9,7 +9,7 @@ import { useState, useEffect } from 'react';
 import { useAccount, usePublicClient, useWalletClient } from 'wagmi';
 import axios from 'axios';
 import { signOrder, signPermit } from '../../eip712/signer';
-import { getGaslessNonce, getTokenNonce, Intent, Order, Permit } from '../../utils/utils';
+import { getGaslessNonce, getTokenNonce, Intent, GaslessCrossChainOrder, Permit } from '../../utils/utils';
 import bs58check from 'bs58check';
 import { UserRejectedRequestError } from 'viem';
 import { configuration } from '../../config/config';
@@ -385,7 +385,7 @@ export default function SwapForm() {
                 to: decodedTronAddress as `0x${string}`,
                 outputAmount: outputValue,
             };
-            const order: Order = {
+            const order: GaslessCrossChainOrder = {
                 originSettler: contractAddress,
                 user: address,
                 nonce: gaslessNonce,
@@ -395,7 +395,7 @@ export default function SwapForm() {
                 intent: intent,
             };
             console.log(order);
-            const orderSignature = await signOrder(walletClient, chainId, contractAddress, order);
+            const orderSignature = await signOrder(walletClient, publicClient, chainId, contractAddress, order);
 
             await axios.post(`${configuration.urls.backend}/intents/swap`, {
                 userAddress: address,
@@ -415,7 +415,7 @@ export default function SwapForm() {
                 fillDeadline: order.fillDeadline.toString(),
                 intent: {
                     refundBeneficiary: intent.refundBeneficiary,
-                    inputs: intent.inputs.map(input => ({
+                    inputs: intent.inputs.map((input: { token: `0x${string}`; amount: bigint }) => ({
                         token: input.token,
                         amount: input.amount.toString()
                     })),

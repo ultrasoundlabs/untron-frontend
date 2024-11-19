@@ -1,7 +1,7 @@
-import { keccak256, stringToBytes, WalletClient } from 'viem';
+import { hashTypedData, keccak256, PublicClient, stringToBytes, WalletClient } from 'viem';
 import { erc20PermitDomain, erc20PermitTypes } from './erc20Permit';
 import { untronIntentsDomain, untronIntentsTypes } from './untronIntents';
-import { generateOrderId, Order, Permit } from '../utils/utils';
+import { generateOrderId, GaslessCrossChainOrder, Permit } from '../utils/utils';
 
 export async function signPermit(
     walletClient: WalletClient,
@@ -53,48 +53,87 @@ export async function signPermit(
 
     return { v, r, s };
 }
-
 export async function signOrder(
     walletClient: WalletClient,
+    publicClient: any,
     chainId: number,
     contractAddress: `0x${string}`,
-    order: Order,
+    order: GaslessCrossChainOrder,
 ) {
+    console.log('Signing order with parameters:', { chainId, contractAddress, order });
+
     const INTENT_TYPEHASH = keccak256(
         stringToBytes(
-            'Intent(address refundBeneficiary,Input[] inputs,bytes21 to,uint256 outputAmount,bytes32 orderId)',
+            'Intent(address refundBeneficiary,Input[] inputs,bytes21 to,uint256 outputAmount,bytes32 orderId)Input(address token,uint256 amount)',
         ),
     );
+    console.log('INTENT_TYPEHASH:', INTENT_TYPEHASH);
+
     const domain = untronIntentsDomain(chainId, contractAddress);
-    const orderId = generateOrderId(order);
+    console.log('Domain:', domain);
+
+    const orderId = await generateOrderId(publicClient, chainId, contractAddress, order);
+    console.log('Generated orderId:', orderId);
 
     const message = {
-        INTENT_TYPEHASH,
         refundBeneficiary: order.intent.refundBeneficiary,
-        // TODO: Scale to support multiple inputs
-        inputs: order.intent.inputs.map((input) => ({
-            token: input.token,
-            amount: input.amount,
-        })),
+        inputs: order.intent.inputs,
         to: order.intent.to,
         outputAmount: order.intent.outputAmount,
         orderId: orderId,
     };
+    console.log('Message:', message);
+
     if (!walletClient.account) {
         throw new Error('Wallet client not associated with an account');
     }
-
-    /*
-    To debug messageHash creation
+    
     const messageHash = hashTypedData({
         domain,
         types: untronIntentsTypes,
         primaryType: 'Intent',
         message,
     });
-    console.log('Message hash:', messageHash);
-    console.log('Order ID:', orderId);
-    */
+    console.log('Client-side messageHash:', messageHash);
+
+    // Verify message hash against contract
+    const contractMessageHash = await publicClient.readContract({
+        address: contractAddress,
+        abi: [{
+            inputs: [
+                { name: 'orderId', type: 'bytes32' },
+                { 
+                    name: 'intent',
+                    type: 'tuple',
+                    components: [
+                        { name: 'refundBeneficiary', type: 'address' },
+                        { 
+                            name: 'inputs',
+                            type: 'tuple[]',
+                            components: [
+                                { name: 'token', type: 'address' },
+                                { name: 'amount', type: 'uint256' }
+                            ]
+                        },
+                        { name: 'to', type: 'bytes21' },
+                        { name: 'outputAmount', type: 'uint256' }
+                    ]
+                }
+            ],
+            name: '_messageHash',
+            outputs: [{ type: 'bytes32' }],
+            stateMutability: 'view',
+            type: 'function'
+        }],
+        functionName: '_messageHash',
+        args: [orderId, order.intent]
+    });
+    console.log('Contract-side messageHash:', contractMessageHash);
+
+    if (messageHash !== contractMessageHash) {
+        console.error('Message hash mismatch:', { clientHash: messageHash, contractHash: contractMessageHash });
+        throw new Error('Message hash mismatch between client and contract');
+    }
 
     const signature = await walletClient.signTypedData({
         account: walletClient.account,
@@ -103,6 +142,7 @@ export async function signOrder(
         primaryType: 'Intent',
         message,
     });
+    console.log('Generated signature:', signature);
 
-    return signature; // This can be sent as hex directly
+    return signature;
 }
