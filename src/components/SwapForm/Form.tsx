@@ -9,7 +9,7 @@ import { useState, useEffect } from 'react';
 import { useAccount, usePublicClient, useWalletClient } from 'wagmi';
 import axios from 'axios';
 import { signOrder, signPermit } from '../../eip712/signer';
-import { getTokenNonce, Intent, Order, Permit } from '../../utils/utils';
+import { getGaslessNonce, getTokenNonce, Intent, Order, Permit } from '../../utils/utils';
 import bs58check from 'bs58check';
 import { UserRejectedRequestError } from 'viem';
 import { configuration } from '../../config/config';
@@ -84,19 +84,19 @@ export default function SwapForm() {
                 const informationResponse = await axios.get(`${configuration.urls.backend}/intents/information`);
                 const data = informationResponse.data;
 
-                // Map tokens from supported_networks
-                const mappedAssets = data.supported_networks.flatMap((network: any) =>
+                // Map tokens from supportedNetworks
+                const mappedAssets = data.supportedNetworks.flatMap((network: any) =>
                     network.tokens.map((token: any) => ({
-                        key: `${network.chain_id}-${token.token_address.toLowerCase()}`,
+                        key: `${network.chainId}-${token.tokenAddress.toLowerCase()}`,
                         symbol: token.symbol,
-                        icon: `${configuration.urls.backend}/public/${network.chain_id}-${token.token_address.toLowerCase()}.png`,
+                        icon: `${configuration.urls.backend}/public/${network.chainId}-${token.tokenAddress.toLowerCase()}.png`,
                         network: network.network,
-                        chainId: network.chain_id,
-                        contractAddress: network.contract_address,
-                        tokenAddress: token.token_address,
+                        chainId: network.chainId,
+                        contractAddress: network.contractAddress,
+                        tokenAddress: token.tokenAddress,
                         decimals: token.decimals,
-                        flatFee: Number(token.flat_fee),
-                        percentFee: Number(token.percent_fee),
+                        flatFee: Number(token.flatFee),
+                        percentFee: Number(token.percentFee),
                     }))
                 );
                 setEnabledAssets(mappedAssets);
@@ -146,7 +146,7 @@ export default function SwapForm() {
                 });
                 setFees(networkFees);
 
-                const maxOutputAmount = data.max_output_amount;
+                const maxOutputAmount = data.maxOutputAmount;
                 setMaxOutputAmount(maxOutputAmount);
 
                 if (selectedInputAsset) {
@@ -325,7 +325,7 @@ export default function SwapForm() {
         // Try to decode the Tron address
         let decodedTronAddress;
         try {
-            decodedTronAddress = '0x' + Buffer.from(bs58check.decode(tronAddress)).toString('hex').slice(2);
+            decodedTronAddress = '0x' + Buffer.from(bs58check.decode(tronAddress)).toString('hex');
         } catch (error) {
             console.error('Invalid Tron address:', error);
             setErrorDecodingTronAddress(true);
@@ -366,6 +366,7 @@ export default function SwapForm() {
 
             // Get the nonce
             const tokenNonce = await getTokenNonce(publicClient, chainId, tokenAddress, address);
+            console.log(publicClient, chainId, tokenAddress, address);
 
             const permit: Permit = {
                 owner: address,
@@ -376,7 +377,7 @@ export default function SwapForm() {
             };
             const permitSignature = await signPermit(walletClient, chainId, tokenAddress, permit, tokenNonce);
 
-            const gaslessNonce = await getTokenNonce(publicClient, chainId, contractAddress, address);
+            const gaslessNonce = await getGaslessNonce(publicClient, chainId, contractAddress, address);
 
             const intent: Intent = {
                 refundBeneficiary: address,
@@ -393,6 +394,7 @@ export default function SwapForm() {
                 fillDeadline: BigInt(Math.floor(Date.now() / 1000) + 21600), // 6 hours from now
                 intent: intent,
             };
+            console.log(order);
             const orderSignature = await signOrder(walletClient, chainId, contractAddress, order);
 
             await axios.post(`${configuration.urls.backend}/intents/swap`, {
@@ -408,6 +410,17 @@ export default function SwapForm() {
                     v: permitSignature.v,
                     r: permitSignature.r,
                     s: permitSignature.s,
+                },
+                openDeadline: order.openDeadline.toString(),
+                fillDeadline: order.fillDeadline.toString(),
+                intent: {
+                    refundBeneficiary: intent.refundBeneficiary,
+                    inputs: intent.inputs.map(input => ({
+                        token: input.token,
+                        amount: input.amount.toString()
+                    })),
+                    to: intent.to,
+                    outputAmount: intent.outputAmount.toString(),
                 },
             });
 

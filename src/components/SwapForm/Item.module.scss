@@ -103,7 +103,6 @@
         font-size: 14px;
     }
 }
-
 .AssetButton {
     display: flex;
     align-items: center;
@@ -118,9 +117,14 @@
     height: 56px;
 
     img {
-        width: 48px;
-        height: 48px;
+        width: 64px;
+        height: 64px;
         object-fit: contain;
+
+        @media (max-width: 600px) {
+            width: 48px;
+            height: 48px;
+        }
     }
 }
 
