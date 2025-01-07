@@ -1,4 +1,5 @@
 import styles from './Item.module.scss';
+import { AssetDisplayOption } from '../../types';
 
 // Update the Right section to handle both selectable and fixed assets consistently
 const AssetDisplay = ({ 
@@ -46,11 +47,7 @@ export default function SwapFormItem({
     iconSrc: string;
     insufficientFunds?: boolean;
     maxOutputSurpassed?: boolean;
-    assetOptions: Array<{
-        key: string;
-        symbol: string;
-        icon: string;
-    }>;
+    assetOptions: AssetDisplayOption[];
     selectedAssetKey: string;
     onAssetChange: (key: string) => void;
     disableAssetSelection?: boolean;
