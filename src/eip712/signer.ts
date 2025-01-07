@@ -1,4 +1,4 @@
-import { keccak256, stringToBytes, WalletClient } from 'viem';
+import { WalletClient } from 'viem';
 import { erc20PermitDomain, erc20PermitTypes } from './erc20Permit';
 import { untronIntentsDomain, untronIntentsTypes } from './untronIntents';
 import { generateOrderId, Order, Permit } from '../utils/utils';
@@ -10,12 +10,8 @@ export async function signPermit(
     permit: Permit,
     nonce: bigint,
 ) {
-    const PERMIT_TYPEHASH = keccak256(
-        stringToBytes('Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)'),
-    );
     const domain = erc20PermitDomain(chainId, tokenAddress);
     const message = {
-        PERMIT_TYPEHASH,
         owner: permit.owner,
         spender: permit.spender,
         value: permit.value,
@@ -27,15 +23,17 @@ export async function signPermit(
         throw new Error('Wallet client not associated with an account');
     }
 
-    /*
-    To debug messageHash creation
+    
+    /* To debug messageHash creation
     const messageHash = hashTypedData({
         domain,
         types: erc20PermitTypes,
         primaryType: 'Permit',
         message,
     });
+    console.log('[PERMIT] Message hash:', messageHash);
     */
+    
 
     const signature = await walletClient.signTypedData({
         account: walletClient.account,
@@ -60,22 +58,12 @@ export async function signOrder(
     contractAddress: `0x${string}`,
     order: Order,
 ) {
-    const INTENT_TYPEHASH = keccak256(
-        stringToBytes(
-            'Intent(address refundBeneficiary,Input[] inputs,bytes21 to,uint256 outputAmount,bytes32 orderId)',
-        ),
-    );
     const domain = untronIntentsDomain(chainId, contractAddress);
     const orderId = generateOrderId(order);
 
     const message = {
-        INTENT_TYPEHASH,
         refundBeneficiary: order.intent.refundBeneficiary,
-        // TODO: Scale to support multiple inputs
-        inputs: order.intent.inputs.map((input) => ({
-            token: input.token,
-            amount: input.amount,
-        })),
+        inputs: order.intent.inputs,
         to: order.intent.to,
         outputAmount: order.intent.outputAmount,
         orderId: orderId,
@@ -84,8 +72,8 @@ export async function signOrder(
         throw new Error('Wallet client not associated with an account');
     }
 
+    // To debug messageHash creation
     /*
-    To debug messageHash creation
     const messageHash = hashTypedData({
         domain,
         types: untronIntentsTypes,
@@ -95,6 +83,7 @@ export async function signOrder(
     console.log('Message hash:', messageHash);
     console.log('Order ID:', orderId);
     */
+    
 
     const signature = await walletClient.signTypedData({
         account: walletClient.account,
