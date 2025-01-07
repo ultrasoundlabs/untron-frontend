@@ -85,6 +85,41 @@ export async function getGaslessNonce(
 }
 
 export function generateOrderId(order: Order): `0x${string}` {
+    // Recall that in the contract
+    // bytes32 orderId = keccak256(abi.encode(order));
+    // Encode the order fields in the same order as in Solidity
+    const encodedOrder = encodeAbiParameters(
+        [
+            { type: 'address' }, // originSettler
+            { type: 'address' }, // user
+            { type: 'uint256' }, // nonce
+            { type: 'uint64' },  // originChainId
+            { type: 'uint32' },  // openDeadline
+            { type: 'uint32' },  // fillDeadline
+            { type: 'bytes' },   // orderData
+        ],
+        [
+            order.originSettler,
+            order.user,
+            order.nonce,
+            BigInt(order.originChainId), // Ensure `originChainId` is BigInt for encoding
+            Number(order.openDeadline), // Ensure deadlines are BigInt for encoding
+            Number(order.fillDeadline),
+            encodeIntent(order.intent),
+        ]
+    );
+
+    console.log('Encoded order:', encodedOrder);
+
+    const offsetEncodedOrder = ('0x0000000000000000000000000000000000000000000000000000000000000020' +
+        encodedOrder.slice(2)) as `0x${string}`;
+
+    // Hash the encoded order
+    return keccak256(offsetEncodedOrder) as `0x${string}`;
+}
+
+/*
+export function generateOrderId(order: Order): `0x${string}` {
     /*
         // Create output array with USDT TRC20 on Tron
         Output[] memory minReceived = new Output[](1);
@@ -103,7 +138,7 @@ export function generateOrderId(order: Order): `0x${string}` {
             minReceived: minReceived,
             fillInstructions: fillInstructions
         });
-    */
+    
 
     //  bytes32 orderId = keccak256(abi.encode(resolvedOrder));
     const MAX_UINT32 = Math.pow(2, 32) - 1;
@@ -163,6 +198,7 @@ export function generateOrderId(order: Order): `0x${string}` {
 
     return keccak256(offsetEncodedResolvedCrossChainOrder);
 }
+*/
 
 export function encodeIntent(intent: Intent): `0x${string}` {
     // Define the ABI types for encoding the intent parameters

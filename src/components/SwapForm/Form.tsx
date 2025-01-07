@@ -217,6 +217,38 @@ export default function SwapForm() {
         fetchBalance();
     }, [publicClient, address, currentChainFees.tokenAddress]);
 
+    // Fetch information from the backend
+    useEffect(() => {
+        async function fetchInformation() {
+            try {
+                const response = await axios.get(`${configuration.urls.backend}/intents/information`); // Replace with your backend endpoint
+                const networkFees = response.data.fees.reduce((acc: any, fee: any) => {
+                    acc[fee.chainId] = {
+                        name: fee.network,
+                        chainId: fee.chainId,
+                        flatFee: Number(fee.flatFee),
+                        percentFee: Number(fee.pctFee),
+                    };
+                    return acc;
+                }, {});
+                console.log(networkFees);
+                setFees(networkFees);
+
+                console.log(walletClient);
+                // TODO: Check why walletClient is sometimes null
+                const chainId = await walletClient!.getChainId();
+                setCurrentChainFees({
+                    flatFee: networkFees[chainId].flatFee,
+                    percentFee: networkFees[chainId].percentFee,
+                });
+                setMaxOutputAmount(response.data.maxOutputAmount);
+            } catch (error) {
+                console.error('Failed to fetch information:', error);
+            }
+        }
+        fetchInformation();
+    }, [walletClient]);
+
     const handleAddressChange = (address: string) => {
         setErrorDecodingTronAddress(false);
         setTronAddress(address);
