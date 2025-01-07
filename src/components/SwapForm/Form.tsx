@@ -13,6 +13,8 @@ import { getGaslessNonce, getTokenNonce, Intent, Order, Permit } from '../../uti
 import bs58check from 'bs58check';
 import { UserRejectedRequestError } from 'viem';
 import { configuration } from '../../config/config';
+import { TokenInfo, NetworkInfo, Information, TokenPermit, SwapRequest, SwapResponse, RateResponse, ErrorResponse } from '../../types/api';
+import { AssetWithFees, ChainFees, AssetDisplayOption } from '../../types';
 
 export default function SwapForm() {
     const { address } = useAccount();
@@ -29,26 +31,8 @@ export default function SwapForm() {
     const [outputConvertedAmount, setOutputConvertedAmount] = useState<string>('');
     const [tronAddress, setTronAddress] = useState<string>('');
     const [userBalance, setUserBalance] = useState<number>(0);
-    const [fees, setFees] = useState<{
-        [key: string]: {
-            symbol: string;
-            network: string;
-            chainId: number;
-            flatFee: number;
-            percentFee: number;
-            contractAddress: `0x${string}`;
-            tokenAddress: `0x${string}`;
-            decimals: number;
-            icon: string;
-        };
-    }>({});
-    const [currentChainFees, setCurrentChainFees] = useState<{
-        flatFee: number;
-        percentFee: number;
-        contractAddress: `0x${string}`;
-        tokenAddress: `0x${string}`;
-        decimals: number;
-    }>({
+    const [fees, setFees] = useState<{[key: string]: AssetWithFees}>({});
+    const [currentChainFees, setCurrentChainFees] = useState<ChainFees>({
         flatFee: 0,
         percentFee: 0,
         contractAddress: '' as `0x${string}`,
@@ -57,44 +41,59 @@ export default function SwapForm() {
     });
     const [insufficientFunds, setInsufficientFunds] = useState<boolean>(false);
     const [errorDecodingTronAddress, setErrorDecodingTronAddress] = useState<boolean>(false);
-    const [exchangeRates, setExchangeRates] = useState<{
-        [key: string]: number;
-    }>({});
+    const [exchangeRates, setExchangeRates] = useState<{[key: string]: number}>({});
     const [maxOutputAmount, setMaxOutputAmount] = useState<number>(100);
     const [maxOutputSurpassed, setMaxOutputSurpassed] = useState<boolean>(false);
-    const [enabledAssets, setEnabledAssets] = useState<
-        Array<{
-            symbol: string;
-            network: string;
-            chainId: number;
-            contractAddress: `0x${string}`;
-            tokenAddress: `0x${string}`;
-            decimals: number;
-            icon: string;
-            flatFee: number;
-            percentFee: number;
-        }>
-    >([]);
+    const [enabledAssets, setEnabledAssets] = useState<AssetWithFees[]>([]);
     const [selectedInputAsset, setSelectedInputAsset] = useState<string>('');
+
+    // Fetch exchange rate when the token is selected
+    useEffect(() => {
+        async function fetchExchangeRate() {
+            if (selectedInputAsset) {
+                try {
+                    const feeData = fees[selectedInputAsset];
+                    if (feeData) {
+                        const ratesResponse = await axios.get<RateResponse>(
+                            `${configuration.urls.backend}/intents/rates`,
+                            {
+                                params: {
+                                    token: feeData.tokenAddress,
+                                    chain_id: feeData.chainId
+                                }
+                            }
+                        );
+                        const rate = ratesResponse.data.rate;
+                        setExchangeRates((prevRates) => ({
+                            ...prevRates,
+                            [selectedInputAsset]: Number(rate),
+                        }));
+                    }
+                } catch (error) {
+                    console.error('Failed to fetch exchange rate:', error);
+                }
+            }
+        }
+        fetchExchangeRate();
+    }, [selectedInputAsset, fees]);
 
     // Fetch information from the backend
     useEffect(() => {
         async function fetchInformation() {
             try {
-                const informationResponse = await axios.get(`${configuration.urls.backend}/intents/information`);
+                const informationResponse = await axios.get<Information>(`${configuration.urls.backend}/intents/information`);
                 const data = informationResponse.data;
 
                 // Map tokens from supportedNetworks
-                const mappedAssets = data.supportedNetworks.flatMap((network: any) =>
-                    network.tokens.map((token: any) => ({
-                        key: `${network.chainId}-${token.tokenAddress.toLowerCase()}`,
+                const mappedAssets = data.supportedNetworks.flatMap((network: NetworkInfo) =>
+                    network.tokens.map((token: TokenInfo): AssetWithFees => ({
                         symbol: token.symbol,
-                        icon: `${configuration.urls.backend}/public/${network.chainId}-${token.tokenAddress.toLowerCase()}.png`,
                         network: network.network,
                         chainId: network.chainId,
-                        contractAddress: network.contractAddress,
-                        tokenAddress: token.tokenAddress,
+                        contractAddress: network.contractAddress as `0x${string}`,
+                        tokenAddress: token.tokenAddress as `0x${string}`,
                         decimals: token.decimals,
+                        icon: `${configuration.urls.backend}/public/${network.chainId}-${token.tokenAddress.toLowerCase()}.png`,
                         flatFee: Number(token.flatFee),
                         percentFee: Number(token.percentFee),
                     }))
@@ -107,42 +106,10 @@ export default function SwapForm() {
                 }
 
                 // Build fees map
-                const networkFees: {
-                    [key: string]: {
-                        symbol: string;
-                        network: string;
-                        chainId: number;
-                        flatFee: number;
-                        percentFee: number;
-                        contractAddress: `0x${string}`;
-                        tokenAddress: `0x${string}`;
-                        decimals: number;
-                        icon: string;
-                    };
-                } = {};
-                mappedAssets.forEach((asset: {
-                    symbol: string;
-                    network: string;
-                    chainId: number;
-                    contractAddress: `0x${string}`;
-                    tokenAddress: `0x${string}`;
-                    decimals: number;
-                    icon: string;
-                    flatFee: number;
-                    percentFee: number;
-                }) => {
+                const networkFees: {[key: string]: AssetWithFees} = {};
+                mappedAssets.forEach((asset) => {
                     const key = `${asset.chainId}-${asset.tokenAddress.toLowerCase()}`;
-                    networkFees[key] = {
-                        symbol: asset.symbol,
-                        network: asset.network,
-                        chainId: asset.chainId,
-                        flatFee: asset.flatFee,
-                        percentFee: asset.percentFee,
-                        contractAddress: asset.contractAddress as `0x${string}`,
-                        tokenAddress: asset.tokenAddress as `0x${string}`,
-                        decimals: asset.decimals,
-                        icon: asset.icon,
-                    };
+                    networkFees[key] = asset;
                 });
                 setFees(networkFees);
 
@@ -166,31 +133,6 @@ export default function SwapForm() {
             }
         }
         fetchInformation();
-    }, [selectedInputAsset]);
-
-    // Fetch exchange rate when the token is selected
-    useEffect(() => {
-        async function fetchExchangeRate() {
-            if (selectedInputAsset) {
-                try {
-                    const feeData = fees[selectedInputAsset];
-                    if (feeData) {
-                        const tokenAddress = feeData.tokenAddress;
-                        const ratesResponse = await axios.get(
-                            `${configuration.urls.backend}/intents/rates?token=${tokenAddress}`
-                        );
-                        const rate = ratesResponse.data.rate;
-                        setExchangeRates((prevRates) => ({
-                            ...prevRates,
-                            [selectedInputAsset]: Number(rate),
-                        }));
-                    }
-                } catch (error) {
-                    console.error('Failed to fetch exchange rate:', error);
-                }
-            }
-        }
-        fetchExchangeRate();
     }, [selectedInputAsset]);
 
     // Fetch user balance
@@ -366,7 +308,6 @@ export default function SwapForm() {
 
             // Get the nonce
             const tokenNonce = await getTokenNonce(publicClient, chainId, tokenAddress, address);
-            console.log(publicClient, chainId, tokenAddress, address);
 
             const permit: Permit = {
                 owner: address,
@@ -394,24 +335,11 @@ export default function SwapForm() {
                 fillDeadline: BigInt(Math.floor(Date.now() / 1000) + 21600), // 6 hours from now
                 intent: intent,
             };
-            console.log(order);
+
             const orderSignature = await signOrder(walletClient, chainId, contractAddress, order);
 
-            await axios.post(`${configuration.urls.backend}/intents/swap`, {
-                userAddress: address,
+            const swapRequest: SwapRequest = {
                 chainId: chainId,
-                tokenAddress: tokenAddress,
-                amount: inputAmount,
-                toTronAddress: tronAddress,
-                nonce: order.nonce.toString(),
-                signature: orderSignature,
-                permit: {
-                    deadline: permit.deadline.toString(),
-                    v: permitSignature.v,
-                    r: permitSignature.r,
-                    s: permitSignature.s,
-                },
-                openDeadline: order.openDeadline.toString(),
                 fillDeadline: order.fillDeadline.toString(),
                 intent: {
                     refundBeneficiary: intent.refundBeneficiary,
@@ -422,17 +350,33 @@ export default function SwapForm() {
                     to: intent.to,
                     outputAmount: intent.outputAmount.toString(),
                 },
-            });
+                nonce: order.nonce.toString(),
+                openDeadline: order.openDeadline.toString(),
+                signature: orderSignature,
+                tokenPermits: [{
+                    deadline: permit.deadline.toString(),
+                    v: permitSignature.v,
+                    r: permitSignature.r,
+                    s: permitSignature.s,
+                }],
+                userAddress: address,
+            };
 
-            // Swap completed successfully
+            const response = await axios.post<SwapResponse>(
+                `${configuration.urls.backend}/intents/swap`,
+                swapRequest
+            );
+
+            // Handle successful response
             setErrorMessage(null);
-            // Optionally, you can display a success message or update the UI accordingly
+            // TODO: Show success modal with response data
         } catch (error: any) {
             console.error('Error during swap:', error);
             if (error instanceof UserRejectedRequestError) {
                 setErrorMessage('Transaction was rejected by the user.');
             } else if (axios.isAxiosError(error)) {
-                setErrorMessage(`API error: ${error.response?.data?.message || error.message}`);
+                const errorResponse = error.response?.data as ErrorResponse;
+                setErrorMessage(`API error: ${errorResponse?.error || error.message}`);
             } else if (error instanceof Error) {
                 setErrorMessage(`Swap error: ${error.message}`);
             } else {
@@ -464,7 +408,7 @@ export default function SwapForm() {
                 balance={userBalance.toFixed(2)}
                 iconSrc={fees[selectedInputAsset]?.icon}
                 insufficientFunds={insufficientFunds}
-                assetOptions={Object.keys(fees).map((key) => ({
+                assetOptions={Object.keys(fees).map((key): AssetDisplayOption => ({
                     key,
                     symbol: fees[key].symbol,
                     icon: fees[key].icon,

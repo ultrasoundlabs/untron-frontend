@@ -1,6 +1,7 @@
 import { keccak256, encodeAbiParameters } from 'viem';
+import { IntentInput, IntentData } from '../types/api';
 
-// Define the types for the inputs and the order
+// Chain-specific types that differ from API types
 export type Input = {
     token: `0x${string}`; // Token address (in hex format)
     amount: bigint; // Amount of tokens
