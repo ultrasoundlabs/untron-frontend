@@ -7,8 +7,12 @@ export const configuration = {
     environment: process.env.NODE_ENV,
     urls: {
         backend: process.env.REACT_APP_BACKEND_URL,
+        tronRpcUrl: process.env.REACT_APP_TRON_RPC_URL,
     },
     walletConnect: {
         projectId: process.env.REACT_APP_WALLETCONNECT_PROJECT_ID,
+    },
+    contracts: {
+        usdtTronAddress: process.env.REACT_APP_USDT_TRON_ADDRESS,
     }
 };

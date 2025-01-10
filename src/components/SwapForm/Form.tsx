@@ -13,8 +13,10 @@ import { getGaslessNonce, getTokenNonce, Intent, Order, Permit } from '../../uti
 import bs58check from 'bs58check';
 import { UserRejectedRequestError } from 'viem';
 import { configuration } from '../../config/config';
-import { TokenInfo, NetworkInfo, Information, TokenPermit, SwapRequest, SwapResponse, RateResponse, ErrorResponse } from '../../types/api';
-import { AssetWithFees, ChainFees, AssetDisplayOption } from '../../types';
+import { TokenInfo, NetworkInfo, Information, SwapRequest, SwapResponse, RateResponse, ErrorResponse } from '../../types/api';
+import { AssetWithFees, ChainFees, AssetDisplayOption, Transaction } from '../../types';
+import { TronWeb } from 'tronweb';
+import { EventResponse, GetEventResultOptions } from 'tronweb/lib/esm/lib/event';
 
 export default function SwapForm() {
     const { address } = useAccount();
@@ -22,6 +24,9 @@ export default function SwapForm() {
         account: address,
     });
     const publicClient = usePublicClient();
+    const tronWeb = new TronWeb({
+        fullHost: configuration.urls.tronRpcUrl
+    });
 
     const [isSwapping, setIsSwapping] = useState<boolean>(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -46,6 +51,8 @@ export default function SwapForm() {
     const [maxOutputSurpassed, setMaxOutputSurpassed] = useState<boolean>(false);
     const [enabledAssets, setEnabledAssets] = useState<AssetWithFees[]>([]);
     const [selectedInputAsset, setSelectedInputAsset] = useState<string>('');
+    const [transaction, setTransaction] = useState<Transaction | undefined>(undefined);
+    const [tronTransaction, setTronTransaction] = useState<Transaction | undefined>(undefined);
 
     // Fetch exchange rate when the token is selected
     useEffect(() => {
@@ -369,7 +376,19 @@ export default function SwapForm() {
 
             // Handle successful response
             setErrorMessage(null);
-            // TODO: Show success modal with response data
+            setTransaction({ url: `https://basescan.org/tx/${response.data.transactionHash}` });
+            
+            if (!configuration.contracts.usdtTronAddress) {
+                console.error('USDT-TRON contract address is not set');
+                throw new Error('USDT-TRON contract address is not set');
+            }
+
+            // To set Tron Transaction we poll the API and when we have a result we set the tron transaction
+            pollTronTransaction({
+                contractAddress: configuration.contracts.usdtTronAddress,
+                to: intent.to,
+                amount: response.data.amountSent,
+            })
         } catch (error: any) {
             console.error('Error during swap:', error);
             if (error instanceof UserRejectedRequestError) {
@@ -389,6 +408,70 @@ export default function SwapForm() {
 
     function clearErrorMessage() {
         setErrorMessage(null);
+    }
+
+    function clearSuccess() {
+        setTransaction(undefined);
+        setTronTransaction(undefined);
+    }
+
+
+    async function pollTronTransaction(options: {
+        contractAddress: string;
+        to: string;
+        amount: string;
+    }) {
+        // TODO: When backend sourced, poll the API for the Tron transaction
+        //       For now, we listen directly to the Tron blockchain
+        (async () => {
+            try {
+                const contractAddress = options.contractAddress;
+        
+                const timeout = setTimeout(() => {
+                    console.log("Timeout reached. Stopping event polling.");
+                    clearInterval(pollingInterval);
+                }, 60000); // 60 seconds timeout
+        
+                const pollingInterval = setInterval(async () => {
+                    try {
+                        const events: EventResponse = await tronWeb.getEventResult(contractAddress, {
+                            eventName: "Transfer", // Event name to listen to
+                        });
+
+                        console.log("Poll");
+                        console.log(events);
+
+                        const eventData = events.data?.map((eventData) => {
+                            return {
+                                to: eventData.result.to,
+                                value: eventData.result.value,
+                                transactionHash: eventData.result.transaction_id,
+                            }
+                        });
+                        if (!eventData || eventData.length === 0) return;
+
+                        for (const { to, value, transactionHash } of eventData) {
+                            if (to === options.to && value === options.amount) {
+                                console.log("Transaction detected!");
+                                setTronTransaction({ url: `https://tronscan.org/#/transaction/${transactionHash}` });
+                                clearInterval(pollingInterval);
+                                clearTimeout(timeout);
+                            }
+
+
+                        }
+                    } catch (err) {
+                        console.error("Error fetching events:", err);
+                    }
+                }, 5000); // Poll every 5 seconds (so in total 12 times)
+        
+                console.log("Listening for Transfer events...");
+            } catch (error) {
+                console.error("Error setting up event polling:", error);
+            }
+        })();
+        
+        
     }
 
     return (
@@ -491,6 +574,7 @@ export default function SwapForm() {
             </ConnectKitButton.Custom>
             <p className={`${styles.Info} ${styles.SmallInfo}`}>Swaps from Tron coming soon</p>
             <SwapFormErrorModal error={errorMessage} onClose={() => clearErrorMessage()} />
+            <SwapFormSuccessModal transaction={transaction} tronTransaction={tronTransaction} onClose={() => clearSuccess()} />
         </div>
     );
 }

@@ -4,9 +4,11 @@ import successImage from '../../images/success-modal.png';
 
 export default function SwapFormSuccessModal({
     transaction,
+    tronTransaction,
     onClose = () => {},
 }: {
     transaction?: Transaction;
+    tronTransaction?: Transaction;
     onClose?: () => void;
 }) {
     return (
@@ -35,6 +37,27 @@ export default function SwapFormSuccessModal({
                         </a>
                     </div>
                 </div>
+                {!tronTransaction && (
+                    <div className={styles.Bottom}>
+                        <div className={styles.Message}>Waiting for transaction</div>
+                        <div className={styles.Info}>
+                            Your transaction is being processed on the Tron network.
+                            <br />
+                            Please wait a few moments.
+                        </div>
+                    </div>
+                )}
+                {tronTransaction && (
+                    <div className={styles.Bottom}>
+                        <div className={styles.Info}>
+                            Your transaction was filled successfully.
+                            <br />
+                            <a href={tronTransaction.url} target="_blank" rel="noreferrer">
+                                View on Tronscan
+                            </a>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
