@@ -622,7 +622,7 @@ export default function SwapForm() {
                 )}
             </ConnectKitButton.Custom>
 
-            {/* Development only button - remove in production */}
+            {/* Development only button - remove in production
             {process.env.NODE_ENV === 'development' && (
                 <button
                     className={styles.Button}
@@ -651,7 +651,7 @@ export default function SwapForm() {
                 >
                     [DEV] Show Success Modal
                 </button>
-            )}
+            )} */}
             
             <p className={`${styles.Info} ${styles.SmallInfo}`}>Swaps from Tron coming soon</p>
             <SwapFormErrorModal error={errorMessage} onClose={() => clearErrorMessage()} />

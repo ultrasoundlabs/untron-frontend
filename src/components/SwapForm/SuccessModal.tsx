@@ -68,22 +68,20 @@ export default function SwapFormSuccessModal({
                     </div>
                 )}
                 {tronTransaction && (
-                    <>
-                        <div className={styles.Bottom}>
-                            <div className={styles.Info}>
-                                Your final transaction on Tron:
-                                <br />
-                                <a href={tronTransaction.url} target="_blank" rel="noreferrer">
-                                    View on Tronscan
-                                </a>
-                                {tronDeliveryTime !== undefined && (
-                                    <span className={styles.TimeDifference}>
-                                        took {tronDeliveryTime} seconds
-                                    </span>
-                                )}
-                            </div>
+                    <div className={styles.Bottom}>
+                        <div className={styles.Info}>
+                            Your final transaction on Tron:
+                            <br />
+                            <a href={tronTransaction.url} target="_blank" rel="noreferrer">
+                                View on Tronscan
+                            </a>
+                            {tronDeliveryTime !== undefined && (
+                                <span className={styles.TimeDifference}>
+                                    took {tronDeliveryTime} seconds
+                                </span>
+                            )}
                         </div>
-                    </>
+                    </div>
                 )}
             </div>
         </div>
