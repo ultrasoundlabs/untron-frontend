@@ -13,11 +13,11 @@ export default function SwapFormSuccessModal({
 }) {
     // Calculate time differences
     const baseDeliveryTime = transaction?.timestamp && transaction?.orderSignedAt
-        ? transaction.timestamp - transaction.orderSignedAt
+        ? Math.max(0, transaction.timestamp - transaction.orderSignedAt)
         : undefined;
 
     const tronDeliveryTime = transaction?.timestamp && tronTransaction?.timestamp
-        ? tronTransaction.timestamp - transaction.timestamp
+        ? Math.max(0, tronTransaction.timestamp - transaction.timestamp)
         : undefined;
 
     // Don't render anything if there's no transaction
