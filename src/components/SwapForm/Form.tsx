@@ -18,6 +18,26 @@ import { AssetWithFees, ChainFees, AssetDisplayOption, Transaction } from '../..
 import { TronWeb } from 'tronweb';
 import { EventResponse, GetEventResultOptions } from 'tronweb/lib/esm/lib/event';
 
+/**
+ * Decodes a Tron base58check address (e.g. T....) into an EVM 0x address.
+ * Tron addresses are 21 bytes where:
+ *   - The first byte is always 0x41
+ *   - The next 20 bytes are the keccak256-hash-based address (like Ethereum)
+ */
+function decodeTronBase58Address(tronAddress: string): `0x${string}` {
+    const bytes = bs58check.decode(tronAddress);
+
+    // Tron addresses always start with 0x41 in raw bytes
+    if (bytes[0] !== 0x41) {
+        throw new Error('Invalid Tron address: missing 0x41 prefix');
+    }
+
+    // Remove the first byte (0x41) to leave the 20-byte EVM address
+    const evmBytes = bytes.slice(1); // 20 bytes remain
+    // Return '0x' + hex
+    return `0x${Buffer.from(evmBytes).toString('hex')}` as `0x${string}`;
+}
+
 export default function SwapForm() {
     const { address } = useAccount();
     const { data: walletClient } = useWalletClient({
@@ -53,6 +73,8 @@ export default function SwapForm() {
     const [selectedInputAsset, setSelectedInputAsset] = useState<string>('');
     const [transaction, setTransaction] = useState<Transaction | undefined>(undefined);
     const [tronTransaction, setTronTransaction] = useState<Transaction | undefined>(undefined);
+    const [baseTransactionTimestamp, setBaseTransactionTimestamp] = useState<number | undefined>(undefined);
+    const [orderSignedTimestamp, setOrderSignedTimestamp] = useState<number | undefined>(undefined);
 
     // Fetch exchange rate when the token is selected
     useEffect(() => {
@@ -274,7 +296,7 @@ export default function SwapForm() {
         // Try to decode the Tron address
         let decodedTronAddress;
         try {
-            decodedTronAddress = '0x' + Buffer.from(bs58check.decode(tronAddress)).toString('hex');
+            decodedTronAddress = `0x41${decodeTronBase58Address(tronAddress).slice(2)}` as `0x${string}`;
         } catch (error) {
             console.error('Invalid Tron address:', error);
             setErrorDecodingTronAddress(true);
@@ -330,7 +352,7 @@ export default function SwapForm() {
             const intent: Intent = {
                 refundBeneficiary: address,
                 inputs: [{ token: tokenAddress, amount: value }],
-                to: decodedTronAddress as `0x${string}`,
+                to: decodedTronAddress,
                 outputAmount: outputValue,
             };
             const order: Order = {
@@ -344,6 +366,8 @@ export default function SwapForm() {
             };
 
             const orderSignature = await signOrder(walletClient, chainId, contractAddress, order);
+            const signedTimestamp = Math.floor(Date.now() / 1000);
+            setOrderSignedTimestamp(signedTimestamp);
 
             const swapRequest: SwapRequest = {
                 chainId: chainId,
@@ -376,7 +400,13 @@ export default function SwapForm() {
 
             // Handle successful response
             setErrorMessage(null);
-            setTransaction({ url: `https://basescan.org/tx/${response.data.transactionHash}` });
+            const baseTimestamp = Math.floor(Date.now() / 1000);
+            setTransaction({ 
+                url: `https://basescan.org/tx/${response.data.transactionHash}`, 
+                timestamp: baseTimestamp,
+                orderSignedAt: signedTimestamp 
+            });
+            setBaseTransactionTimestamp(baseTimestamp);
             
             if (!configuration.contracts.usdtTronAddress) {
                 console.error('USDT-TRON contract address is not set');
@@ -386,8 +416,8 @@ export default function SwapForm() {
             // To set Tron Transaction we poll the API and when we have a result we set the tron transaction
             pollTronTransaction({
                 contractAddress: configuration.contracts.usdtTronAddress,
-                to: intent.to,
-                amount: response.data.amountSent,
+                to: tronAddress,
+                amount: outputValue.toString(),
             })
         } catch (error: any) {
             console.error('Error during swap:', error);
@@ -413,16 +443,15 @@ export default function SwapForm() {
     function clearSuccess() {
         setTransaction(undefined);
         setTronTransaction(undefined);
+        setBaseTransactionTimestamp(undefined);
+        setOrderSignedTimestamp(undefined);
     }
-
 
     async function pollTronTransaction(options: {
         contractAddress: string;
-        to: string;
+        to: string;        // This is the Tron T... address from the user
         amount: string;
     }) {
-        // TODO: When backend sourced, poll the API for the Tron transaction
-        //       For now, we listen directly to the Tron blockchain
         (async () => {
             try {
                 const contractAddress = options.contractAddress;
@@ -431,47 +460,67 @@ export default function SwapForm() {
                     console.log("Timeout reached. Stopping event polling.");
                     clearInterval(pollingInterval);
                 }, 60000); // 60 seconds timeout
+
+                // Convert user-supplied T... address into 0x... format
+                // so we can do a direct match with the event result
+                let evmTo: string;
+                try {
+                    evmTo = decodeTronBase58Address(options.to).toLowerCase();
+                } catch (err) {
+                    console.error('Error decoding Tron address:', err);
+                    clearTimeout(timeout);
+                    return;
+                }
         
                 const pollingInterval = setInterval(async () => {
                     try {
                         const events: EventResponse = await tronWeb.getEventResult(contractAddress, {
                             eventName: "Transfer", // Event name to listen to
+                            limit: 200, // maximum accepted limit
                         });
 
                         console.log("Poll");
                         console.log(events);
+                        const eventData = events.data?.map((eventData) => ({
+                            to: eventData.result.to,
+                            value: eventData.result.value,
+                            transactionHash: eventData.transaction_id,
+                            blockTimestamp: eventData.block_timestamp
+                        }));
 
-                        const eventData = events.data?.map((eventData) => {
-                            return {
-                                to: eventData.result.to,
-                                value: eventData.result.value,
-                                transactionHash: eventData.result.transaction_id,
-                            }
-                        });
                         if (!eventData || eventData.length === 0) return;
 
-                        for (const { to, value, transactionHash } of eventData) {
-                            if (to === options.to && value === options.amount) {
+                        // Compare 'to' from the event to the EVM version of the Tron address
+                        for (const { to, value, transactionHash, blockTimestamp } of eventData) {
+                            if (to.toLowerCase() === evmTo.toLowerCase() && value === options.amount) {
                                 console.log("Transaction detected!");
-                                setTronTransaction({ url: `https://tronscan.org/#/transaction/${transactionHash}` });
+                                
+                                // Calculate time difference if we have both timestamps
+                                if (baseTransactionTimestamp) {
+                                    // blockTimestamp is in milliseconds, convert baseTransactionTimestamp to ms
+                                    const timeDiffSeconds = Math.floor((blockTimestamp - (baseTransactionTimestamp * 1000)) / 1000);
+                                    console.log(`Time between Base and Tron transactions: ${timeDiffSeconds} seconds`);
+                                }
+                                
+                                setTronTransaction({ 
+                                    url: `https://tronscan.org/#/transaction/${transactionHash}`,
+                                    timestamp: Math.floor(blockTimestamp / 1000),
+                                    orderSignedAt: transaction?.orderSignedAt
+                                });
                                 clearInterval(pollingInterval);
                                 clearTimeout(timeout);
                             }
-
-
                         }
                     } catch (err) {
                         console.error("Error fetching events:", err);
                     }
-                }, 5000); // Poll every 5 seconds (so in total 12 times)
+                }, 3000); // Poll every 3 seconds (so in total 20 times)
         
                 console.log("Listening for Transfer events...");
             } catch (error) {
                 console.error("Error setting up event polling:", error);
             }
         })();
-        
-        
     }
 
     return (
@@ -572,6 +621,38 @@ export default function SwapForm() {
                     </button>
                 )}
             </ConnectKitButton.Custom>
+
+            {/* Development only button - remove in production */}
+            {process.env.NODE_ENV === 'development' && (
+                <button
+                    className={styles.Button}
+                    onClick={() => {
+                        const now = Math.floor(Date.now() / 1000);
+                        const orderSignedAt = now - 10; // 10 seconds ago
+                        const baseTimestamp = now - 5; // 5 seconds ago
+                        
+                        // Show initial success modal with just the Base transaction
+                        setTransaction({
+                            url: 'https://basescan.org/tx/0x123...', 
+                            timestamp: baseTimestamp,
+                            orderSignedAt: orderSignedAt
+                        });
+
+                        // Simulate Tron transaction landing after 3 seconds
+                        setTimeout(() => {
+                            const tronLandingTime = Math.floor(Date.now() / 1000);
+                            setTronTransaction({
+                                url: 'https://tronscan.org/#/transaction/0x456...',
+                                timestamp: tronLandingTime,
+                                orderSignedAt: orderSignedAt
+                            });
+                        }, 3000);
+                    }}
+                >
+                    [DEV] Show Success Modal
+                </button>
+            )}
+            
             <p className={`${styles.Info} ${styles.SmallInfo}`}>Swaps from Tron coming soon</p>
             <SwapFormErrorModal error={errorMessage} onClose={() => clearErrorMessage()} />
             <SwapFormSuccessModal transaction={transaction} tronTransaction={tronTransaction} onClose={() => clearSuccess()} />

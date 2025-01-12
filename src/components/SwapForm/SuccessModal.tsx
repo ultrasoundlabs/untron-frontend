@@ -11,17 +11,33 @@ export default function SwapFormSuccessModal({
     tronTransaction?: Transaction;
     onClose?: () => void;
 }) {
+    // Calculate time differences
+    const baseDeliveryTime = transaction?.timestamp && transaction?.orderSignedAt
+        ? transaction.timestamp - transaction.orderSignedAt
+        : undefined;
+
+    const tronDeliveryTime = transaction?.timestamp && tronTransaction?.timestamp
+        ? tronTransaction.timestamp - transaction.timestamp
+        : undefined;
+
+    // Don't render anything if there's no transaction
+    if (!transaction) {
+        return null;
+    }
+
     return (
-        <div className={styles.Overlay} style={{ display: transaction ? undefined : 'none' }}>
-            <div className={styles.Modal}>
+        <div className={styles.Overlay} onClick={onClose}>
+            <div className={styles.Modal} onClick={(e) => e.stopPropagation()}>
                 <div className={styles.Top}>
-                    <div className={styles.Title}>Approve swap</div>
-                    <button onClick={() => onClose?.()} className={styles.CloseButton}>
-                        {/* Similar, place svg icon here differently depends on your preferences */}
-                        <svg viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <div className={styles.Title}>Success</div>
+                    <button className={styles.CloseButton} onClick={onClose}>
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path
-                                d="M1.1953 20.6843C1.83775 21.3391 2.95451 21.3159 3.57798 20.6951L10.918 13.3401L18.2676 20.6897C18.902 21.3241 19.9928 21.3364 20.6353 20.6816C21.3024 20.0268 21.2901 18.936 20.6434 18.3016L13.3088 10.9492L20.6434 3.61463C21.2901 2.97761 21.3024 1.87442 20.6353 1.23468C19.9928 0.579874 18.902 0.592229 18.2676 1.22383L10.918 8.5708L3.57798 1.22112C2.95451 0.597653 1.83775 0.577163 1.1953 1.22925C0.543211 1.87171 0.563703 2.98846 1.18717 3.61192L8.54227 10.9492L1.18717 18.3043C0.563703 18.9278 0.543211 20.0295 1.1953 20.6843Z"
-                                fill="currentColor"
+                                d="M18 6L6 18M6 6L18 18"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
                             />
                         </svg>
                     </button>
@@ -30,16 +46,20 @@ export default function SwapFormSuccessModal({
                 <div className={styles.Bottom}>
                     <div className={styles.Message}>Transaction Successful</div>
                     <div className={styles.Info}>
-                        Your transaction was completed successfully.
+                        Your deposit transaction on Base:
                         <br />
                         <a href={transaction?.url} target="_blank" rel="noreferrer">
                             View on Basescan
                         </a>
+                        {baseDeliveryTime !== undefined && (
+                            <span className={styles.TimeDifference}>
+                                took {baseDeliveryTime} seconds
+                            </span>
+                        )}
                     </div>
                 </div>
                 {!tronTransaction && (
                     <div className={styles.Bottom}>
-                        <div className={styles.Message}>Waiting for transaction</div>
                         <div className={styles.Info}>
                             Your transaction is being processed on the Tron network.
                             <br />
@@ -48,15 +68,22 @@ export default function SwapFormSuccessModal({
                     </div>
                 )}
                 {tronTransaction && (
-                    <div className={styles.Bottom}>
-                        <div className={styles.Info}>
-                            Your transaction was filled successfully.
-                            <br />
-                            <a href={tronTransaction.url} target="_blank" rel="noreferrer">
-                                View on Tronscan
-                            </a>
+                    <>
+                        <div className={styles.Bottom}>
+                            <div className={styles.Info}>
+                                Your final transaction on Tron:
+                                <br />
+                                <a href={tronTransaction.url} target="_blank" rel="noreferrer">
+                                    View on Tronscan
+                                </a>
+                                {tronDeliveryTime !== undefined && (
+                                    <span className={styles.TimeDifference}>
+                                        took {tronDeliveryTime} seconds
+                                    </span>
+                                )}
+                            </div>
                         </div>
-                    </div>
+                    </>
                 )}
             </div>
         </div>
