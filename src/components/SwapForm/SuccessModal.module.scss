@@ -109,12 +109,39 @@
     align-items: center;
     gap: 8px;
 
-    & > a {
+    & > .LinkContainer {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    & > .LinkContainer > a {
         text-decoration: underline;
         transition: opacity 0.2s ease;
 
         &:hover {
             opacity: 0.8;
+        }
+    }
+
+    & > .LinkContainer > button {
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 4px;
+        transition: opacity 0.2s ease;
+
+        &:hover {
+            & > svg {
+                color: var(--color-text-primary);
+            }
+        }
+
+        & > svg {
+            display: block;
+            height: 16px;
+            width: 16px;
+            color: var(--color-text-secondary);
+            transition: color 0.2s ease;
         }
     }
 }
