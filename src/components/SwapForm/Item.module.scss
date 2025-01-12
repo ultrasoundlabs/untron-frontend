@@ -110,7 +110,7 @@
     background: var(--color-panel);
     border: 1px solid var(--color-border);
     border-radius: 12px;
-    padding: 4px;
+    padding: 4px 12px 4px 0px;
     cursor: pointer;
     transition: all 0.2s ease;
     min-width: 56px;
@@ -131,9 +131,11 @@
 .DropdownIndicator {
     font-size: 12px;
     color: var(--color-text-secondary);
-    padding-right: 8px;
+    padding-left: 2px;
+    display: flex;
+    align-items: center;
 }
 
 .AssetButton:disabled .DropdownIndicator {
-    visibility: hidden;
+    display: none;
 }
