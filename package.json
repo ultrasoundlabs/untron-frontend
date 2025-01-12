@@ -22,6 +22,7 @@
     "react-scripts": "5.0.1",
     "reset-css": "^5.0.2",
     "sass": "^1.79.4",
+    "tronweb": "^6.0.0",
     "typescript": "^5.0.2",
     "viem": "^2.21.19",
     "wagmi": "^2.12.17",
@@ -31,10 +32,10 @@
     "typescript": "^5.0.2"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject",
+    "start": "react-app-rewired start",
+    "build": "react-app-rewired build",
+    "test": "react-app-rewired test",
+    "eject": "react-app-rewired eject",
     "format": "prettier --write 'src/**/*.{js,jsx,ts,tsx,json,css,scss,md}'"
   },
   "eslintConfig": {
@@ -54,5 +55,8 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "react-app-rewired": "^2.2.1"
   }
 }

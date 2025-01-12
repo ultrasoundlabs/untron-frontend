@@ -5,6 +5,7 @@
     top: 0;
     left: 0;
     background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
 
     display: flex;
     align-items: center;
@@ -20,6 +21,7 @@
     border-radius: 36px;
     background: var(--color-panel);
     width: 480px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
 }
 
 .Top {
@@ -40,6 +42,11 @@
 .CloseButton {
     cursor: pointer;
     height: max-content;
+    transition: opacity 0.2s ease;
+
+    &:hover {
+        opacity: 0.7;
+    }
 
     & > svg {
         display: block;
@@ -64,6 +71,24 @@
     flex-direction: column;
     align-items: center;
     text-align: center;
+    width: 100%;
+    position: relative;
+
+    &:not(:last-child) {
+        padding-bottom: 24px;
+
+        &::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 1px;
+            background: var(--color-text-secondary);
+            opacity: 0.2;
+        }
+    }
 }
 
 .Message {
@@ -71,6 +96,7 @@
     font-size: 24px;
     line-height: 1.5em;
     font-weight: 600;
+    margin-bottom: 8px;
 }
 
 .Info {
@@ -78,8 +104,38 @@
     font-size: 18px;
     line-height: 1.25em;
     font-weight: 400;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
 
     & > a {
         text-decoration: underline;
+        transition: opacity 0.2s ease;
+
+        &:hover {
+            opacity: 0.8;
+        }
     }
+}
+
+.TimeDifference {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-text-button-secondary);
+    transform: translateX(8px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.TotalTime {
+    color: var(--color-text-secondary);
+    font-size: 18px;
+    line-height: 1.5em;
+    font-weight: 600;
+    padding: 8px 20px;
+    border-radius: 999px;
+    margin-top: 8px;
 }

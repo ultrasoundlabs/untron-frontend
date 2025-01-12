@@ -4,6 +4,8 @@
 
 export interface Transaction {
     url?: string;
+    timestamp?: number;
+    orderSignedAt?: number;
     // Add other relevant properties
 }
 
