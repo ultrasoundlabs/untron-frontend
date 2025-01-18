@@ -5,7 +5,7 @@ export default function Header() {
         <header className={styles.Header}>
             <img src="/images/logo.png" className={styles.Logo} alt="" />
             <a
-                href="https://ultrasoundlabs.github.io/untron-docs/"
+                href="https://ultrasoundlabs.github.io/untron-docs/1123123213"
                 target="_blank"
                 rel="noopener noreferrer"
                 className={styles.DocsLink}
