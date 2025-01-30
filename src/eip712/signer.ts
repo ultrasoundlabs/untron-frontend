@@ -1,7 +1,6 @@
 import { WalletClient } from 'viem';
 import { erc20PermitDomain, erc20PermitTypes } from './erc20Permit';
-import { untronIntentsDomain, untronIntentsTypes } from './untronIntents';
-import { generateOrderId, Order, Permit } from '../utils/utils';
+import { Permit } from '../utils/utils';
 
 export async function signPermit(
     walletClient: WalletClient,
@@ -14,7 +13,7 @@ export async function signPermit(
     const message = {
         owner: permit.owner,
         spender: permit.spender,
-        value: permit.value,
+        value: permit.amount,
         nonce: nonce,
         deadline: permit.deadline,
     };
@@ -50,48 +49,4 @@ export async function signPermit(
     const v = parseInt(signatureBytes.slice(128, 130), 16);
 
     return { v, r, s };
-}
-
-export async function signOrder(
-    walletClient: WalletClient,
-    chainId: number,
-    contractAddress: `0x${string}`,
-    order: Order,
-) {
-    const domain = untronIntentsDomain(chainId, contractAddress);
-    const orderId = generateOrderId(order);
-
-    const message = {
-        refundBeneficiary: order.intent.refundBeneficiary,
-        inputs: order.intent.inputs,
-        to: order.intent.to,
-        outputAmount: order.intent.outputAmount,
-        orderId: orderId,
-    };
-    if (!walletClient.account) {
-        throw new Error('Wallet client not associated with an account');
-    }
-
-    // To debug messageHash creation
-    /*
-    const messageHash = hashTypedData({
-        domain,
-        types: untronIntentsTypes,
-        primaryType: 'Intent',
-        message,
-    });
-    console.log('Message hash:', messageHash);
-    console.log('Order ID:', orderId);
-    */
-    
-
-    const signature = await walletClient.signTypedData({
-        account: walletClient.account,
-        domain,
-        types: untronIntentsTypes,
-        primaryType: 'Intent',
-        message,
-    });
-
-    return signature; // This can be sent as hex directly
 }

@@ -1,35 +1,14 @@
-import { keccak256, encodeAbiParameters } from 'viem';
-import { IntentInput, IntentData } from '../types/api';
+import { encodeAbiParameters, pad, toHex, encodeFunctionData } from 'viem';
+import contractAbi from '../abi/untronTransfersAbi';
+import { configuration } from '../config/config';
 
 // Chain-specific types that differ from API types
-export type Input = {
-    token: `0x${string}`; // Token address (in hex format)
-    amount: bigint; // Amount of tokens
-};
-
-export type Order = {
-    originSettler: `0x${string}`; // Contract address
-    user: `0x${string}`; // User's address
-    nonce: bigint; // Nonce to prevent replay attacks
-    originChainId: number; // Origin chain ID (e.g., Base network)
-    openDeadline: bigint; // Timestamp for when the order should be opened
-    fillDeadline: bigint; // Timestamp for when the order should be filled on destination chain
-    intent: Intent; // Intent
-};
-
 export type Permit = {
     owner: `0x${string}`;
     spender: `0x${string}`;
-    value: bigint;
+    amount: bigint;
     nonce: bigint;
     deadline: bigint;
-};
-
-export type Intent = {
-    refundBeneficiary: `0x${string}`;
-    inputs: Input[];
-    to: `0x${string}`;
-    outputAmount: bigint;
 };
 
 export async function getTokenNonce(
@@ -59,176 +38,86 @@ export async function getTokenNonce(
     return BigInt(data.toString());
 }
 
-export async function getGaslessNonce(
-    publicClient: any,
-    chainId: number,
-    untronIntentsAddress: `0x${string}`,
-    address: `0x${string}`,
-): Promise<bigint> {
-    console.log(chainId);
-    const data = await publicClient.readContract({
-        address: untronIntentsAddress,
-        chainId,
-        abi: [
-            {
-                constant: true,
-                inputs: [{ name: 'owner', type: 'address' }],
-                name: 'gaslessNonces',
-                outputs: [{ name: '', type: 'uint256' }],
-                type: 'function',
-            },
-        ],
-        functionName: 'gaslessNonces',
-        args: [address],
-    });
-
-    return BigInt(data.toString());
-}
-
-export function generateOrderId(order: Order): `0x${string}` {
-    // Recall that in the contract
-    // bytes32 orderId = keccak256(abi.encode(order));
-    // Encode the order fields in the same order as in Solidity
-    const encodedOrder = encodeAbiParameters(
+// Implement the function to encode the permit data
+export function encodePermitData(
+    permit: Permit,
+    permitSignature: {
+        v: number;
+        r: `0x${string}`;
+        s: `0x${string}`;
+    }
+): `0x${string}` {
+    // ABI encode the data according to the expected format
+    return encodeAbiParameters(
         [
-            { type: 'address' }, // originSettler
-            { type: 'address' }, // user
-            { type: 'uint256' }, // nonce
-            { type: 'uint64' },  // originChainId
-            { type: 'uint32' },  // openDeadline
-            { type: 'uint32' },  // fillDeadline
-            { type: 'bytes' },   // orderData
+            { type: "address" }, // spender
+            { type: "uint256" }, // amount
+            { type: "uint256" }, // deadline
+            { type: "uint8" },   // v
+            { type: "bytes32" }, // r
+            { type: "bytes32" }, // s
         ],
         [
-            order.originSettler,
-            order.user,
-            order.nonce,
-            BigInt(order.originChainId), // Ensure `originChainId` is BigInt for encoding
-            Number(order.openDeadline), // Ensure deadlines are BigInt for encoding
-            Number(order.fillDeadline),
-            encodeIntent(order.intent),
+            permit.spender,
+            permit.amount,
+            permit.deadline,
+            permitSignature.v,
+            permitSignature.r,
+            permitSignature.s,
         ]
     );
-
-    console.log('Encoded order:', encodedOrder);
-
-    const offsetEncodedOrder = ('0x0000000000000000000000000000000000000000000000000000000000000020' +
-        encodedOrder.slice(2)) as `0x${string}`;
-
-    // Hash the encoded order
-    return keccak256(offsetEncodedOrder) as `0x${string}`;
 }
 
-/*
-export function generateOrderId(order: Order): `0x${string}` {
-    /*
-        // Create output array with USDT TRC20 on Tron
-        Output[] memory minReceived = new Output[](1);
-        minReceived[0] = Output(USDT_TRC20, intent.outputAmount, bytes32(uint256(uint168(intent.to))), TRON_COINID);
 
-        // Create fill instruction to send output to settlement address on Tron
-        FillInstruction[] memory fillInstructions = new FillInstruction[](1);
-        fillInstructions[0] = FillInstruction(TRON_COINID, TRON_SETTLEMENT_ADDRESS, "");
+export function encodeSwapData(inputAmount: string, outputAmount: string, tronAddress: string): `0x${string}` {
+    // Ensure input and output amounts fit into 6 bytes (0 <= amount < 2^48)
+    const inputAmountHex = pad(toHex(BigInt(inputAmount)), { size: 6 }); // 6 bytes
+    const outputAmountHex = pad(toHex(BigInt(outputAmount)), { size: 6 }); // 6 bytes
 
-        return ResolvedCrossChainOrder({
-            user: intent.refundBeneficiary,
-            originChainId: _chainId(),
-            openDeadline: type(uint32).max,
-            fillDeadline: fillDeadline,
-            maxSpent: intent.inputs,
-            minReceived: minReceived,
-            fillInstructions: fillInstructions
-        });
-    
+    console.log(tronAddress);
+    console.info(tronAddress);
+    const strippedTronAddress = tronAddress.replace("41", "");
+    console.log(strippedTronAddress);
+    // Validate and pad the Tron address without the prefix byte 0x41 (20 bytes)
+    if (strippedTronAddress.length !== 42 || !strippedTronAddress.startsWith("0x")) {
+        throw new Error("Invalid Tron address format. Must be 21 bytes in hex format.");
+    }
+    const tronAddressHex = strippedTronAddress.toLowerCase(); // Tron address should already be 20 bytes
 
-    //  bytes32 orderId = keccak256(abi.encode(resolvedOrder));
-    const MAX_UINT32 = Math.pow(2, 32) - 1;
-    const resolvedCrossChainOrderTypes = [
-        { type: 'address', name: 'user' },
-        { type: 'uint64', name: 'originChainId' },
-        { type: 'uint32', name: 'openDeadline' },
-        { type: 'uint32', name: 'fillDeadline' },
-        {
-            type: 'tuple[]',
-            name: 'maxSpent',
-            components: [{ type: 'address' }, { type: 'uint256' }],
-        },
-        {
-            type: 'tuple[]',
-            name: 'minReceived',
-            components: [{ type: 'bytes32' }, { type: 'uint256' }, { type: 'bytes32' }, { type: 'uint32' }],
-        },
-        {
-            type: 'tuple[]',
-            name: 'fillInstructions',
-            components: [{ type: 'uint32' }, { type: 'bytes32' }, { type: 'bytes' }],
-        },
-    ];
+    // Concatenate inputAmount (6 bytes), outputAmount (6 bytes), and Tron address (21 bytes)
+    const swapData = `0x${inputAmountHex.slice(2)}${outputAmountHex.slice(2)}${tronAddressHex.slice(2)}`;
 
-    const maxSpent = [] as [`0x${string}`, bigint][]; // Tuple array for inputs
-    for (const input of order.intent.inputs) {
-        maxSpent.push([input.token, input.amount]);
+    if (swapData.length !== 66) {
+        throw new Error("Swap data is not 33 bytes.");
     }
 
-    const minReceived = [] as [`0x${string}`, bigint, `0x${string}`, number][]; // Tuple array for inputs
-    minReceived.push([
-        '0x000000000000000000000041a614f803b6fd780986a42c78ec9c7f77e6ded13c' as `0x${string}`,
-        order.intent.outputAmount,
-        `0x${order.intent.to.slice(2).padStart(64, '0')}` as `0x${string}`,
-        0x800000c3,
-    ]);
-
-    const fillInstructions = [] as [number, `0x${string}`, `0x${string}`][]; // Tuple array for inputs
-    fillInstructions.push([0x800000c3, `0x${'0'.repeat(64)}` as `0x${string}`, '0x' as `0x${string}`]);
-
-    const encodedResolvedCrossChainOrder = encodeAbiParameters(resolvedCrossChainOrderTypes, [
-        order.user,
-        BigInt(order.originChainId),
-        MAX_UINT32,
-        order.fillDeadline,
-        maxSpent,
-        minReceived,
-        fillInstructions,
-    ]);
-
-    // Hash the encoded order to get the order ID
-    // TODO: See if this is the correct way or if we should do something in the sc instead :shrug:
-    // Add offset of 32 bytes
-    const offsetEncodedResolvedCrossChainOrder = ('0x0000000000000000000000000000000000000000000000000000000000000020' +
-        encodedResolvedCrossChainOrder.slice(2)) as `0x${string}`;
-
-    return keccak256(offsetEncodedResolvedCrossChainOrder);
+    return swapData as `0x${string}`;
 }
-*/
 
-export function encodeIntent(intent: Intent): `0x${string}` {
-    // Define the ABI types for encoding the intent parameters
-    const intentAbiTypes = [
-        { type: 'address', name: 'refundBeneficiary' },
-        {
-            type: 'tuple[]',
-            name: 'inputs',
-            components: [{ type: 'address' }, { type: 'uint256' }],
-        },
-        { type: 'bytes21', name: 'to' },
-        { type: 'uint256', name: 'outputAmount' },
-    ];
+export async function callPermitAndCompactUsdc(
+    permitData: `0x${string}`,
+    swapData: `0x${string}`,
+    walletClient: any, // Provided by `useWalletClient`
+    publicClient: any, // Provided by `usePublicClient`
+) {
+    console.log(permitData);
+    console.log(swapData);
 
-    const intentInputs = [] as [`0x${string}`, bigint][]; // Tuple array for inputs
-    for (const input of intent.inputs) {
-        intentInputs.push([input.token, input.amount]);
-    }
+    // Use `walletClient` to send the transaction
+    const tx = await walletClient.writeContract({
+        address: configuration.contracts.untronTransfersAddress,
+        abi: contractAbi,
+        functionName: 'permitAndCompactUsdc',
+        args: [permitData, swapData],
+    });
 
-    // Encode the intent parameters using viem's `encodeAbiParameters`
-    const encodedIntent = encodeAbiParameters(intentAbiTypes, [
-        intent.refundBeneficiary,
-        intentInputs,
-        intent.to,
-        intent.outputAmount,
-    ]);
+    // Await for receipt
+    const receipt = await publicClient.waitForTransactionReceipt({
+        hash: tx,
+    });
+    console.log('Transaction Sent:', tx);
+    console.log('Receipt:', receipt);
 
-    const offsetEncodedIntent = ('0x0000000000000000000000000000000000000000000000000000000000000020' +
-        encodedIntent.slice(2)) as `0x${string}`;
-    // Convert the encoded intent to hexadecimal format (starts with '0x')
-    return offsetEncodedIntent;
+    console.log('Transaction Sent:', tx);
+    return tx;
 }

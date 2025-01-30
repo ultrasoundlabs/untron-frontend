@@ -96,13 +96,9 @@ export interface IntentData {
  */
 export interface SwapRequest {
     chainId: number;
-    fillDeadline: string;
-    intent: IntentData;
-    nonce: string;
-    openDeadline: string;
+    permitData: string;
+    swapData: string;
     signature: string;
-    tokenPermits?: TokenPermit[];
-    userAddress: string;
 }
 
 /**
