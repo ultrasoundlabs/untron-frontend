@@ -126,4 +126,4 @@ export interface ErrorResponse {
  */
 export interface RateResponse {
     rate: number;
-} 
+}

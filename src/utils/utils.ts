@@ -45,29 +45,21 @@ export function encodePermitData(
         v: number;
         r: `0x${string}`;
         s: `0x${string}`;
-    }
+    },
 ): `0x${string}` {
     // ABI encode the data according to the expected format
     return encodeAbiParameters(
         [
-            { type: "address" }, // spender
-            { type: "uint256" }, // amount
-            { type: "uint256" }, // deadline
-            { type: "uint8" },   // v
-            { type: "bytes32" }, // r
-            { type: "bytes32" }, // s
+            { type: 'address' }, // spender
+            { type: 'uint256' }, // amount
+            { type: 'uint256' }, // deadline
+            { type: 'uint8' }, // v
+            { type: 'bytes32' }, // r
+            { type: 'bytes32' }, // s
         ],
-        [
-            permit.spender,
-            permit.amount,
-            permit.deadline,
-            permitSignature.v,
-            permitSignature.r,
-            permitSignature.s,
-        ]
+        [permit.spender, permit.amount, permit.deadline, permitSignature.v, permitSignature.r, permitSignature.s],
     );
 }
-
 
 export function encodeSwapData(inputAmount: string, outputAmount: string, tronAddress: string): `0x${string}` {
     // Ensure input and output amounts fit into 6 bytes (0 <= amount < 2^48)
@@ -76,11 +68,11 @@ export function encodeSwapData(inputAmount: string, outputAmount: string, tronAd
 
     console.log(tronAddress);
     console.info(tronAddress);
-    const strippedTronAddress = tronAddress.replace("41", "");
+    const strippedTronAddress = tronAddress.replace('41', '');
     console.log(strippedTronAddress);
     // Validate and pad the Tron address without the prefix byte 0x41 (20 bytes)
-    if (strippedTronAddress.length !== 42 || !strippedTronAddress.startsWith("0x")) {
-        throw new Error("Invalid Tron address format. Must be 21 bytes in hex format.");
+    if (strippedTronAddress.length !== 42 || !strippedTronAddress.startsWith('0x')) {
+        throw new Error('Invalid Tron address format. Must be 21 bytes in hex format.');
     }
     const tronAddressHex = strippedTronAddress.toLowerCase(); // Tron address should already be 20 bytes
 
@@ -88,7 +80,7 @@ export function encodeSwapData(inputAmount: string, outputAmount: string, tronAd
     const swapData = `0x${inputAmountHex.slice(2)}${outputAmountHex.slice(2)}${tronAddressHex.slice(2)}`;
 
     if (swapData.length !== 66) {
-        throw new Error("Swap data is not 33 bytes.");
+        throw new Error('Swap data is not 33 bytes.');
     }
 
     return swapData as `0x${string}`;

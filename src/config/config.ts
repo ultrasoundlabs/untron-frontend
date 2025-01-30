@@ -15,5 +15,5 @@ export const configuration = {
     contracts: {
         usdtTronAddress: process.env.REACT_APP_USDT_TRON_ADDRESS,
         untronTransfersAddress: process.env.REACT_APP_UNTRON_INTENTS_BASE_ADDRESS,
-    }
+    },
 };

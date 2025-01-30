@@ -22,7 +22,6 @@ export async function signPermit(
         throw new Error('Wallet client not associated with an account');
     }
 
-    
     /* To debug messageHash creation
     const messageHash = hashTypedData({
         domain,
@@ -32,7 +31,6 @@ export async function signPermit(
     });
     console.log('[PERMIT] Message hash:', messageHash);
     */
-    
 
     const signature = await walletClient.signTypedData({
         account: walletClient.account,

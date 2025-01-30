@@ -13,7 +13,15 @@ import { callPermitAndCompactUsdc, encodePermitData, encodeSwapData, getTokenNon
 import bs58check from 'bs58check';
 import { UserRejectedRequestError } from 'viem';
 import { configuration } from '../../config/config';
-import { TokenInfo, NetworkInfo, Information, SwapRequest, SwapResponse, RateResponse, ErrorResponse } from '../../types/api';
+import {
+    TokenInfo,
+    NetworkInfo,
+    Information,
+    SwapRequest,
+    SwapResponse,
+    RateResponse,
+    ErrorResponse,
+} from '../../types/api';
 import { AssetWithFees, ChainFees, AssetDisplayOption, Transaction } from '../../types';
 import { TronWeb } from 'tronweb';
 import { EventResponse, GetEventResultOptions } from 'tronweb/lib/esm/lib/event';
@@ -45,7 +53,7 @@ export default function SwapForm() {
     });
     const publicClient = usePublicClient();
     const tronWeb = new TronWeb({
-        fullHost: configuration.urls.tronRpcUrl
+        fullHost: configuration.urls.tronRpcUrl,
     });
 
     const [isSwapping, setIsSwapping] = useState<boolean>(false);
@@ -56,7 +64,7 @@ export default function SwapForm() {
     const [outputConvertedAmount, setOutputConvertedAmount] = useState<string>('');
     const [tronAddress, setTronAddress] = useState<string>('');
     const [userBalance, setUserBalance] = useState<number>(0);
-    const [fees, setFees] = useState<{[key: string]: AssetWithFees}>({});
+    const [fees, setFees] = useState<{ [key: string]: AssetWithFees }>({});
     const [currentChainFees, setCurrentChainFees] = useState<ChainFees>({
         flatFee: 0,
         percentFee: 0,
@@ -66,7 +74,7 @@ export default function SwapForm() {
     });
     const [insufficientFunds, setInsufficientFunds] = useState<boolean>(false);
     const [errorDecodingTronAddress, setErrorDecodingTronAddress] = useState<boolean>(false);
-    const [exchangeRates, setExchangeRates] = useState<{[key: string]: number}>({});
+    const [exchangeRates, setExchangeRates] = useState<{ [key: string]: number }>({});
     const [maxOutputAmount, setMaxOutputAmount] = useState<number>(100);
     const [maxOutputSurpassed, setMaxOutputSurpassed] = useState<boolean>(false);
     const [selectedInputAsset, setSelectedInputAsset] = useState<string>('');
@@ -87,9 +95,9 @@ export default function SwapForm() {
                             {
                                 params: {
                                     token: feeData.tokenAddress,
-                                    chain_id: feeData.chainId
-                                }
-                            }
+                                    chain_id: feeData.chainId,
+                                },
+                            },
                         );
                         const rate = ratesResponse.data.rate;
                         setExchangeRates((prevRates) => ({
@@ -109,22 +117,26 @@ export default function SwapForm() {
     useEffect(() => {
         async function fetchInformation() {
             try {
-                const informationResponse = await axios.get<Information>(`${configuration.urls.backend}/intents/information`);
+                const informationResponse = await axios.get<Information>(
+                    `${configuration.urls.backend}/intents/information`,
+                );
                 const data = informationResponse.data;
 
                 // Map tokens from supportedNetworks
                 const mappedAssets = data.supportedNetworks.flatMap((network: NetworkInfo) =>
-                    network.tokens.map((token: TokenInfo): AssetWithFees => ({
-                        symbol: token.symbol,
-                        network: network.network,
-                        chainId: network.chainId,
-                        contractAddress: network.contractAddress as `0x${string}`,
-                        tokenAddress: token.tokenAddress as `0x${string}`,
-                        decimals: token.decimals,
-                        icon: `${configuration.urls.backend}/public/${network.chainId}-${token.tokenAddress.toLowerCase()}.png`,
-                        flatFee: Number(token.flatFee),
-                        percentFee: Number(token.percentFee),
-                    }))
+                    network.tokens.map(
+                        (token: TokenInfo): AssetWithFees => ({
+                            symbol: token.symbol,
+                            network: network.network,
+                            chainId: network.chainId,
+                            contractAddress: network.contractAddress as `0x${string}`,
+                            tokenAddress: token.tokenAddress as `0x${string}`,
+                            decimals: token.decimals,
+                            icon: `${configuration.urls.backend}/public/${network.chainId}-${token.tokenAddress.toLowerCase()}.png`,
+                            flatFee: Number(token.flatFee),
+                            percentFee: Number(token.percentFee),
+                        }),
+                    ),
                 );
 
                 if (mappedAssets.length > 0) {
@@ -133,7 +145,7 @@ export default function SwapForm() {
                 }
 
                 // Build fees map
-                const networkFees: {[key: string]: AssetWithFees} = {};
+                const networkFees: { [key: string]: AssetWithFees } = {};
                 mappedAssets.forEach((asset) => {
                     const key = `${asset.chainId}-${asset.tokenAddress.toLowerCase()}`;
                     networkFees[key] = asset;
@@ -217,8 +229,7 @@ export default function SwapForm() {
         if (!feeData) return;
 
         const percentageFee = Math.max(0.01, input * feeData.percentFee);
-        const output =
-            Math.floor((input - percentageFee - feeData.flatFee + Number.EPSILON) * 100) / 100;
+        const output = Math.floor((input - percentageFee - feeData.flatFee + Number.EPSILON) * 100) / 100;
         setOutputAmount(output.toFixed(2));
 
         const usdtUsdRate = 1; // Assuming USDT is pegged to USD
@@ -255,11 +266,9 @@ export default function SwapForm() {
             setInputConvertedAmount('');
         } else {
             setMaxOutputSurpassed(false);
-            const input =
-                Math.ceil(((output + feeData.flatFee) / (1 - feeData.percentFee)) * 100) / 100;
+            const input = Math.ceil(((output + feeData.flatFee) / (1 - feeData.percentFee)) * 100) / 100;
             const percentageFee = Math.max(0.01, input * feeData.percentFee);
-            const adjustedInput =
-                Math.ceil((output + feeData.flatFee + percentageFee) * 100) / 100;
+            const adjustedInput = Math.ceil((output + feeData.flatFee + percentageFee) * 100) / 100;
             setInputAmount(adjustedInput.toFixed(2));
 
             const assetRate = exchangeRates[selectedInputAsset] || 1;
@@ -279,8 +288,7 @@ export default function SwapForm() {
         setExchangeRates({});
     };
 
-    const isSwapDisabled =
-        !inputAmount || !tronAddress || insufficientFunds || maxOutputSurpassed;
+    const isSwapDisabled = !inputAmount || !tronAddress || insufficientFunds || maxOutputSurpassed;
 
     async function requestSwap() {
         if (isSwapping || !inputAmount || !outputAmount) return;
@@ -350,23 +358,18 @@ export default function SwapForm() {
             const signedTimestamp = Math.floor(Date.now() / 1000);
             setOrderSignedTimestamp(signedTimestamp);
 
-            const transactionHash = await callPermitAndCompactUsdc(
-                permitData,
-                swapData,
-                walletClient,
-                publicClient,
-            )
+            const transactionHash = await callPermitAndCompactUsdc(permitData, swapData, walletClient, publicClient);
 
             // Handle successful response
             setErrorMessage(null);
             const baseTimestamp = Math.floor(Date.now() / 1000);
-            setTransaction({ 
-                url: `https://basescan.org/tx/${transactionHash}`, 
+            setTransaction({
+                url: `https://basescan.org/tx/${transactionHash}`,
                 timestamp: baseTimestamp,
-                orderSignedAt: signedTimestamp 
+                orderSignedAt: signedTimestamp,
             });
             setBaseTransactionTimestamp(baseTimestamp);
-            
+
             if (!configuration.contracts.usdtTronAddress) {
                 console.error('USDT-TRON contract address is not set');
                 throw new Error('USDT-TRON contract address is not set');
@@ -377,7 +380,7 @@ export default function SwapForm() {
                 contractAddress: configuration.contracts.usdtTronAddress,
                 to: tronAddress,
                 amount: outputValue.toString(),
-            })
+            });
         } catch (error: any) {
             console.error('Error during swap:', error);
             if (error instanceof UserRejectedRequestError) {
@@ -406,10 +409,9 @@ export default function SwapForm() {
         setOrderSignedTimestamp(undefined);
     }
 
-
     async function pollTronTransaction(options: {
         contractAddress: string;
-        to: string;        // This is the Tron T... address from the user
+        to: string; // This is the Tron T... address from the user
         amount: string;
     }) {
         // TODO: When backend sourced, poll the API for the Tron transaction
@@ -417,12 +419,12 @@ export default function SwapForm() {
         (async () => {
             try {
                 const contractAddress = options.contractAddress;
-        
+
                 const timeout = setTimeout(() => {
-                    console.log("Timeout reached. Stopping event polling.");
+                    console.log('Timeout reached. Stopping event polling.');
                     clearInterval(pollingInterval);
                 }, 60000); // 60 seconds timeout
-        
+
                 // Convert user-supplied T... address into 0x... format
                 // so we can do a direct match with the event result
                 let evmTo: string;
@@ -437,16 +439,16 @@ export default function SwapForm() {
                 const pollingInterval = setInterval(async () => {
                     try {
                         const events: EventResponse = await tronWeb.getEventResult(contractAddress, {
-                            eventName: "Transfer", // Event name to listen to
+                            eventName: 'Transfer', // Event name to listen to
                         });
 
-                        console.log("Poll");
+                        console.log('Poll');
                         console.log(events);
                         const eventData = events.data?.map((eventData) => ({
                             to: eventData.result.to,
                             value: eventData.result.value,
                             transactionHash: eventData.transaction_id,
-                            blockTimestamp: eventData.block_timestamp
+                            blockTimestamp: eventData.block_timestamp,
                         }));
 
                         if (!eventData || eventData.length === 0) return;
@@ -454,36 +456,36 @@ export default function SwapForm() {
                         // Compare 'to' from the event to the EVM version of the Tron address
                         for (const { to, value, transactionHash, blockTimestamp } of eventData) {
                             if (to.toLowerCase() === evmTo.toLowerCase() && value === options.amount) {
-                                console.log("Transaction detected!");
+                                console.log('Transaction detected!');
 
                                 // Calculate time difference if we have both timestamps
                                 if (baseTransactionTimestamp) {
                                     // blockTimestamp is in milliseconds, convert baseTransactionTimestamp to ms
-                                    const timeDiffSeconds = Math.floor((blockTimestamp - (baseTransactionTimestamp * 1000)) / 1000);
+                                    const timeDiffSeconds = Math.floor(
+                                        (blockTimestamp - baseTransactionTimestamp * 1000) / 1000,
+                                    );
                                     console.log(`Time between Base and Tron transactions: ${timeDiffSeconds} seconds`);
                                 }
 
-                                setTronTransaction({ 
+                                setTronTransaction({
                                     url: `https://tronscan.org/#/transaction/${transactionHash}`,
                                     timestamp: Math.floor(blockTimestamp / 1000),
-                                    orderSignedAt: transaction?.orderSignedAt
+                                    orderSignedAt: transaction?.orderSignedAt,
                                 });
                                 clearInterval(pollingInterval);
                                 clearTimeout(timeout);
                             }
                         }
                     } catch (err) {
-                        console.error("Error fetching events:", err);
+                        console.error('Error fetching events:', err);
                     }
                 }, 3000); // Poll every 3 seconds (so in total 20 times)
-        
-                console.log("Listening for Transfer events...");
+
+                console.log('Listening for Transfer events...');
             } catch (error) {
-                console.error("Error setting up event polling:", error);
+                console.error('Error setting up event polling:', error);
             }
         })();
-        
-        
     }
 
     return (
@@ -503,11 +505,13 @@ export default function SwapForm() {
                 balance={userBalance.toFixed(2)}
                 iconSrc={fees[selectedInputAsset]?.icon}
                 insufficientFunds={insufficientFunds}
-                assetOptions={Object.keys(fees).map((key): AssetDisplayOption => ({
-                    key,
-                    symbol: fees[key].symbol,
-                    icon: fees[key].icon,
-                }))}
+                assetOptions={Object.keys(fees).map(
+                    (key): AssetDisplayOption => ({
+                        key,
+                        symbol: fees[key].symbol,
+                        icon: fees[key].icon,
+                    }),
+                )}
                 selectedAssetKey={selectedInputAsset}
                 onAssetChange={handleInputAssetChange}
             />
@@ -543,7 +547,7 @@ export default function SwapForm() {
                         icon: 'images/usdttron.png',
                     },
                 ]}
-                selectedAssetKey='USDT-TRON'
+                selectedAssetKey="USDT-TRON"
                 onAssetChange={() => {}} // Output asset is fixed for now
                 disableAssetSelection={true}
             />
@@ -562,9 +566,7 @@ export default function SwapForm() {
             <ConnectKitButton.Custom>
                 {({ isConnected, isConnecting, show, address }) => (
                     <button
-                        className={`${styles.Button} ${
-                            isSwapDisabled && isConnected ? styles.DisabledButton : ''
-                        }`}
+                        className={`${styles.Button} ${isSwapDisabled && isConnected ? styles.DisabledButton : ''}`}
                         disabled={isSwapDisabled && isConnected}
                         onClick={() => {
                             if (isConnected && address) {
@@ -615,7 +617,11 @@ export default function SwapForm() {
             )} */}
             <p className={`${styles.Info} ${styles.SmallInfo}`}>Swaps from Tron coming soon</p>
             <SwapFormErrorModal error={errorMessage} onClose={() => clearErrorMessage()} />
-            <SwapFormSuccessModal transaction={transaction} tronTransaction={tronTransaction} onClose={() => clearSuccess()} />
+            <SwapFormSuccessModal
+                transaction={transaction}
+                tronTransaction={tronTransaction}
+                onClose={() => clearSuccess()}
+            />
         </div>
     );
 }
