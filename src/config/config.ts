@@ -1,3 +1,5 @@
+import { chains } from './chains';
+
 export const configuration = {
     // There is also a built-in environment variable called NODE_ENV.
     // You can read it from process.env.NODE_ENV. When you run npm start, it is always equal to 'development',
@@ -12,7 +14,9 @@ export const configuration = {
     walletConnect: {
         projectId: process.env.REACT_APP_WALLETCONNECT_PROJECT_ID,
     },
+    chains,
     contracts: {
+        // Only include contracts that aren't chain-specific
         usdtTronAddress: process.env.REACT_APP_USDT_TRON_ADDRESS,
         untronTransfersAddress: process.env.REACT_APP_UNTRON_INTENTS_BASE_ADDRESS,
     },

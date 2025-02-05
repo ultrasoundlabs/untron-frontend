@@ -22,6 +22,7 @@ $form-gap: 16px;
     position: relative;
     width: 100%;
     height: $form-gap;
+    z-index: 30;
 }
 
 .SwapArrow {
@@ -36,6 +37,7 @@ $form-gap: 16px;
     align-items: center;
     justify-content: center;
     background: var(--color-background-button-primary);
+    z-index: 30;
 
     & > svg {
         height: 35px;

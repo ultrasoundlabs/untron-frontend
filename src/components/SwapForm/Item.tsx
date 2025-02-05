@@ -1,33 +1,78 @@
 import styles from './Item.module.scss';
 import { AssetDisplayOption } from '../../types';
+import { useState, useRef, useEffect } from 'react';
 
 // Update the Right section to handle both selectable and fixed assets consistently
 const AssetDisplay = ({
     icon,
-    onClick,
+    assetOptions,
+    selectedAssetKey,
+    onAssetChange,
     disableAssetSelection,
 }: {
     icon: string;
-    onClick: () => void;
+    assetOptions: AssetDisplayOption[];
+    selectedAssetKey: string;
+    onAssetChange: (key: string) => void;
     disableAssetSelection?: boolean;
 }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const handleAssetSelect = (key: string) => {
+        onAssetChange(key);
+        setIsOpen(false);
+    };
+
     return (
-        <button className={styles.AssetButton} onClick={onClick} disabled={disableAssetSelection}>
-            {!disableAssetSelection && (
-                <span className={styles.DropdownIndicator}>
-                    <svg width="12" height="8" viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path
-                            d="M1 1.5L6 6.5L11 1.5"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                        />
-                    </svg>
-                </span>
+        <div className={styles.AssetSelector} ref={dropdownRef}>
+            <button 
+                className={styles.AssetButton} 
+                onClick={() => !disableAssetSelection && setIsOpen(!isOpen)} 
+                disabled={disableAssetSelection}
+            >
+                {!disableAssetSelection && (
+                    <span className={styles.DropdownIndicator}>
+                        <svg width="12" height="8" viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path
+                                d="M1 1.5L6 6.5L11 1.5"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                            />
+                        </svg>
+                    </span>
+                )}
+                <img src={icon} alt="Token icon" />
+            </button>
+
+            {isOpen && !disableAssetSelection && (
+                <div className={styles.Dropdown}>
+                    {assetOptions.map((asset) => (
+                        <div
+                            key={asset.key}
+                            className={`${styles.DropdownItem} ${asset.key === selectedAssetKey ? styles.Selected : ''}`}
+                            onClick={() => handleAssetSelect(asset.key)}
+                        >
+                            <img src={asset.icon} alt={asset.symbol} className={styles.AssetIcon} />
+                            <span className={styles.AssetSymbol}>{asset.symbol}</span>
+                        </div>
+                    ))}
+                </div>
             )}
-            <img src={icon} alt="Token icon" />
-        </button>
+        </div>
     );
 };
 
@@ -89,11 +134,9 @@ export default function SwapFormItem({
                 <div className={styles.Right}>
                     <AssetDisplay
                         icon={disableAssetSelection ? iconSrc : selectedAsset?.icon || ''}
-                        onClick={() => {
-                            if (selectedAsset) {
-                                onAssetChange(selectedAsset.key);
-                            }
-                        }}
+                        assetOptions={assetOptions}
+                        selectedAssetKey={selectedAssetKey}
+                        onAssetChange={onAssetChange}
                         disableAssetSelection={disableAssetSelection}
                     />
                 </div>
