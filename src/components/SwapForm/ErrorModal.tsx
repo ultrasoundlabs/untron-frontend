@@ -1,8 +1,10 @@
 import styles from './ErrorModal.module.scss';
 
-export default function SwapFormErrorModal({ error, onClose = () => {} }: { error?: any; onClose?: () => void }) {
+export default function SwapFormErrorModal({ error, onClose = () => {} }: { error?: string | null; onClose?: () => void }) {
+    if (!error) return null;
+    
     return (
-        <div className={styles.Overlay} style={{ display: error ? undefined : 'none' }}>
+        <div className={styles.Overlay}>
             <div className={styles.Modal}>
                 <div className={styles.Top}>
                     <div className={styles.Title}>Approve swap</div>
@@ -20,7 +22,7 @@ export default function SwapFormErrorModal({ error, onClose = () => {} }: { erro
                 <div className={styles.Bottom}>
                     <div className={styles.Message}>Transaction Error</div>
                     <div className={styles.Info}>
-                        {typeof error === 'string' ? error : error?.message || 'An unknown error occurred'}
+                        {error}
                     </div>
                 </div>
             </div>

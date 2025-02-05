@@ -1,62 +1,64 @@
 {
-  "name": "untron-frontend",
-  "version": "0.1.0",
-  "private": true,
-  "dependencies": {
-    "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
-    "@tanstack/react-query": "^5.59.0",
-    "@testing-library/jest-dom": "^5.17.0",
-    "@testing-library/react": "^13.4.0",
-    "@testing-library/user-event": "^13.5.0",
-    "@types/jest": "^27.5.2",
-    "@types/node": "^16.18.112",
-    "@types/react": "^18.3.11",
-    "@types/react-dom": "^18.3.0",
-    "@yudiel/react-qr-scanner": "^2.0.8",
-    "axios": "^1.7.7",
-    "bs58check": "^4.0.0",
-    "connectkit": "^1.8.2",
-    "prettier": "^3.3.3",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-scripts": "5.0.1",
-    "reset-css": "^5.0.2",
-    "sass": "^1.79.4",
-    "tronweb": "^6.0.0",
-    "typescript": "^5.0.2",
-    "viem": "^2.21.19",
-    "wagmi": "^2.12.17",
-    "web-vitals": "^2.1.4"
-  },
-  "overrides": {
-    "typescript": "^5.0.2"
-  },
-  "scripts": {
-    "start": "react-app-rewired start",
-    "build": "react-app-rewired build",
-    "test": "react-app-rewired test",
-    "eject": "react-app-rewired eject",
-    "format": "prettier --write 'src/**/*.{js,jsx,ts,tsx,json,css,scss,md}'"
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
-  },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
-  },
-  "devDependencies": {
-    "react-app-rewired": "^2.2.1"
-  }
+    "name": "untron-frontend",
+    "version": "0.1.0",
+    "private": true,
+    "dependencies": {
+        "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
+        "@tanstack/react-query": "^5.59.0",
+        "@testing-library/jest-dom": "^5.17.0",
+        "@testing-library/react": "^13.4.0",
+        "@testing-library/user-event": "^13.5.0",
+        "@types/classnames": "^2.3.0",
+        "@types/jest": "^27.5.2",
+        "@types/node": "^16.18.112",
+        "@types/react": "^18.3.11",
+        "@types/react-dom": "^18.3.0",
+        "@yudiel/react-qr-scanner": "^2.0.8",
+        "axios": "^1.7.7",
+        "bs58check": "^4.0.0",
+        "classnames": "^2.5.1",
+        "connectkit": "^1.8.2",
+        "prettier": "^3.3.3",
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1",
+        "react-scripts": "5.0.1",
+        "reset-css": "^5.0.2",
+        "sass": "^1.79.4",
+        "tronweb": "^6.0.0",
+        "typescript": "^5.0.2",
+        "viem": "^2.21.19",
+        "wagmi": "^2.12.17",
+        "web-vitals": "^2.1.4"
+    },
+    "overrides": {
+        "typescript": "^5.0.2"
+    },
+    "scripts": {
+        "start": "react-app-rewired start",
+        "build": "react-app-rewired build",
+        "test": "react-app-rewired test",
+        "eject": "react-app-rewired eject",
+        "format": "prettier --write 'src/**/*.{js,jsx,ts,tsx,json,css,scss,md}'"
+    },
+    "eslintConfig": {
+        "extends": [
+            "react-app",
+            "react-app/jest"
+        ]
+    },
+    "browserslist": {
+        "production": [
+            ">0.2%",
+            "not dead",
+            "not op_mini all"
+        ],
+        "development": [
+            "last 1 chrome version",
+            "last 1 firefox version",
+            "last 1 safari version"
+        ]
+    },
+    "devDependencies": {
+        "react-app-rewired": "^2.2.1"
+    }
 }

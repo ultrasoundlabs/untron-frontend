@@ -5,6 +5,7 @@
     top: 0;
     left: 0;
     background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
 
     display: flex;
     align-items: center;
@@ -21,6 +22,7 @@
     background: var(--color-panel);
     width: 480px;
     max-width: 90%;
+    z-index: 1001;
 
     @media (max-width: 600px) {
         padding: 16px;

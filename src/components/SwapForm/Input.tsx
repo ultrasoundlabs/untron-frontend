@@ -8,11 +8,7 @@ interface SwapFormInputProps {
     buttonText?: string;
 }
 
-export default function SwapFormInput({ 
-    inputProps, 
-    onInsert, 
-    buttonText = 'Paste'
-}: SwapFormInputProps) {
+export default function SwapFormInput({ inputProps, onInsert, buttonText = 'Paste' }: SwapFormInputProps) {
     const [showScanner, setShowScanner] = useState(false);
 
     const handleInsert = async () => {
@@ -44,10 +40,7 @@ export default function SwapFormInput({
             {showScanner && (
                 <div className={styles.ScannerModal}>
                     <div className={styles.ScannerContainer}>
-                        <button 
-                            className={styles.CloseButton}
-                            onClick={() => setShowScanner(false)}
-                        >
+                        <button className={styles.CloseButton} onClick={() => setShowScanner(false)}>
                             ×
                         </button>
                         <Scanner

@@ -2,21 +2,29 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    min-height: 100vh;
-    justify-content: space-between;
-    padding-top: 85px;
-    padding-bottom: 50px;
-    margin: 0 auto;
+    min-height: calc(100vh - 100px);
+    justify-content: center;
+    margin: 100px auto 0;
     width: 100%;
     max-width: 1200px;
+    padding: 24px;
+    position: relative;
 
     @media (max-width: 768px) {
-        padding-top: 60px;
-        padding-bottom: 40px;
+        padding: 20px;
     }
 
     @media (max-width: 480px) {
-        padding-top: 40px;
-        padding-bottom: 30px;
+        padding: 16px;
     }
+}
+
+.App {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: var(--color-background);
+    width: 100%;
+    position: relative;
 }
