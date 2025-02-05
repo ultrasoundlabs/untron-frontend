@@ -86,6 +86,33 @@ export function encodeSwapData(inputAmount: string, outputAmount: string, tronAd
     return swapData as `0x${string}`;
 }
 
+export async function callCompactUsdc(
+    swapData: `0x${string}`,
+    walletClient: any, // Provided by `useWalletClient`
+    publicClient: any, // Provided by `usePublicClient`
+) {
+    console.log(swapData);
+
+    // Use `walletClient` to send the transaction
+    const tx = await walletClient.writeContract({
+        address: configuration.contracts.untronTransfersAddress,
+        abi: contractAbi,
+        functionName: 'compactUsdc',
+        args: [swapData],
+    });
+
+    // Await for receipt
+    const receipt = await publicClient.waitForTransactionReceipt({
+        hash: tx,
+    });
+    
+    console.log('Transaction Sent:', tx);
+    console.log('Receipt:', receipt);
+
+    console.log('Transaction Sent:', tx);
+    return tx;
+}
+
 export async function callPermitAndCompactUsdc(
     permitData: `0x${string}`,
     swapData: `0x${string}`,

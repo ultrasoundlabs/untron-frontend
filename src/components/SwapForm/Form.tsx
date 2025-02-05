@@ -8,8 +8,8 @@ import SwapFormErrorModal from './ErrorModal';
 import { useState, useEffect } from 'react';
 import { useAccount, usePublicClient, useWalletClient } from 'wagmi';
 import axios from 'axios';
-import { signPermit } from '../../eip712/signer';
-import { callPermitAndCompactUsdc, encodePermitData, encodeSwapData, getTokenNonce, Permit } from '../../utils/utils';
+//import { signPermit } from '../../eip712/signer';
+import { callCompactUsdc, encodeSwapData, getTokenNonce } from '../../utils/utils';
 import bs58check from 'bs58check';
 import { UserRejectedRequestError } from 'viem';
 import { configuration } from '../../config/config';
@@ -17,14 +17,12 @@ import {
     TokenInfo,
     NetworkInfo,
     Information,
-    SwapRequest,
-    SwapResponse,
     RateResponse,
     ErrorResponse,
 } from '../../types/api';
 import { AssetWithFees, ChainFees, AssetDisplayOption, Transaction } from '../../types';
 import { TronWeb } from 'tronweb';
-import { EventResponse, GetEventResultOptions } from 'tronweb/lib/esm/lib/event';
+import { EventResponse } from 'tronweb/lib/esm/lib/event';
 
 /**
  * Decodes a Tron base58check address (e.g. T....) into an EVM 0x address.
@@ -344,6 +342,8 @@ export default function SwapForm() {
             // Get the nonce
             const tokenNonce = await getTokenNonce(publicClient, chainId, tokenAddress, address);
 
+            // TODO: Use when implementing gasless
+            /*
             const permit: Permit = {
                 owner: address,
                 spender,
@@ -353,12 +353,13 @@ export default function SwapForm() {
             };
             const permitSignature = await signPermit(walletClient, chainId, tokenAddress, permit, tokenNonce);
             const permitData = encodePermitData(permit, permitSignature);
+            */
             const swapData = encodeSwapData(value.toString(), outputValue.toString(), decodedTronAddress);
 
             const signedTimestamp = Math.floor(Date.now() / 1000);
             setOrderSignedTimestamp(signedTimestamp);
 
-            const transactionHash = await callPermitAndCompactUsdc(permitData, swapData, walletClient, publicClient);
+            const transactionHash = await callCompactUsdc(swapData, walletClient, publicClient);
 
             // Handle successful response
             setErrorMessage(null);
