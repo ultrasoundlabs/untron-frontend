@@ -7,59 +7,60 @@ interface CalculationResult {
     maxOutputSurpassed: boolean;
 }
 
-interface InputCalculationResult {
-    adjustedInput: number;
-    inputConverted: number;
-    outputConverted: number;
-    maxOutputSurpassed: boolean;
-}
-
 export function calculateOutputAmount(
-    input: number,
+    inputAmount: number,
     tokenConfig: TokenConfig,
-    maxOutputAmount: number,
+    maxOutputAmount: number
 ): CalculationResult {
-    const inputConverted = input * tokenConfig.rate;
-    const percentageFee = Math.max(0.01, input * tokenConfig.percentFee);
-    const output = Math.floor((input - percentageFee - tokenConfig.flatFee + Number.EPSILON) * 100) / 100;
-
-    const usdtUsdRate = 1; // Assuming USDT is pegged to USD
-    const outputConverted = output * usdtUsdRate;
-
+    // Convert input amount to USD
+    const inputConverted = inputAmount * tokenConfig.rate;
+    
+    // Calculate fees
+    const flatFeeDeduction = tokenConfig.flatFee;
+    const percentFeeDeduction = (inputConverted * tokenConfig.percentFee) / 100;
+    
+    // Calculate output after fees
+    const outputBeforeMax = inputConverted - flatFeeDeduction - percentFeeDeduction;
+    const maxOutputSurpassed = outputBeforeMax > maxOutputAmount;
+    const output = maxOutputSurpassed ? maxOutputAmount : outputBeforeMax;
+    
     return {
         output,
-        outputConverted,
+        outputConverted: output,
         inputConverted,
-        maxOutputSurpassed: output > maxOutputAmount,
+        maxOutputSurpassed
     };
 }
 
 export function calculateInputAmount(
-    output: number,
+    outputAmount: number,
     tokenConfig: TokenConfig,
-    maxOutputAmount: number,
-): InputCalculationResult {
-    if (output > maxOutputAmount) {
+    maxOutputAmount: number
+): CalculationResult & { adjustedInput: number } {
+    if (outputAmount > maxOutputAmount) {
         return {
-            adjustedInput: 0,
+            output: outputAmount,
+            outputConverted: outputAmount,
             inputConverted: 0,
-            outputConverted: output,
             maxOutputSurpassed: true,
+            adjustedInput: 0
         };
     }
 
-    const input = Math.ceil(((output + tokenConfig.flatFee) / (1 - tokenConfig.percentFee)) * 100) / 100;
-    const percentageFee = Math.max(0.01, input * tokenConfig.percentFee);
-    const adjustedInput = Math.ceil((output + tokenConfig.flatFee + percentageFee) * 100) / 100;
-
-    const inputConverted = adjustedInput * tokenConfig.rate;
-    const usdtUsdRate = 1; // Assuming USDT is pegged to USD
-    const outputConverted = output * usdtUsdRate;
-
+    // Calculate required input amount including fees
+    const flatFee = tokenConfig.flatFee;
+    const percentFee = tokenConfig.percentFee;
+    
+    // Solve for input: output = input - flatFee - (input * percentFee / 100)
+    // output = input * (1 - percentFee/100) - flatFee
+    // input = (output + flatFee) / (1 - percentFee/100)
+    const adjustedInput = (outputAmount + flatFee) / (1 - percentFee / 100);
+    
     return {
-        adjustedInput,
-        inputConverted,
-        outputConverted,
+        output: outputAmount,
+        outputConverted: outputAmount,
+        inputConverted: adjustedInput,
         maxOutputSurpassed: false,
+        adjustedInput: adjustedInput / tokenConfig.rate
     };
 } 

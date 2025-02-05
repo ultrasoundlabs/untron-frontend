@@ -1,14 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAccount, usePublicClient, useWalletClient } from 'wagmi';
 import { UserRejectedRequestError } from 'viem';
 import { configuration } from '../config/config';
 import { TokenConfig } from '../config/chains';
 import { Transaction } from '../types';
-import { callCompactUsdc, encodeSwapData } from '../utils/utils';
+import { callCompactUsdc, callCompactUsdt, encodeSwapData } from '../utils/utils';
 import { calculateInputAmount, calculateOutputAmount } from '../utils/calculator';
 
 export interface SwapState {
     isSwapping: boolean;
+    isApproving: boolean;
+    isApproved: boolean;
     errorMessage: string | null;
     inputAmount: string;
     inputConvertedAmount: string;
@@ -33,6 +35,8 @@ export function useSwap(
 
     const [state, setState] = useState<SwapState>({
         isSwapping: false,
+        isApproving: false,
+        isApproved: false,
         errorMessage: null,
         inputAmount: '',
         inputConvertedAmount: '',
@@ -43,6 +47,101 @@ export function useSwap(
         transaction: undefined,
         baseTransactionTimestamp: undefined,
     });
+
+    // Debounced allowance check
+    useEffect(() => {
+        if (!state.inputAmount || parseFloat(state.inputAmount) <= 0 || !selectedInputAsset) {
+            updateState({ isApproved: false });
+            return;
+        }
+
+        const tokenConfig = getTokenConfig(selectedInputAsset);
+        const amount = BigInt(Math.floor(parseFloat(state.inputAmount) * 10 ** tokenConfig.decimals));
+        
+        const checkCurrentAllowance = async () => {
+            const isApproved = await checkAllowance(tokenConfig, amount);
+            updateState({ isApproved });
+        };
+
+        const timeoutId = setTimeout(checkCurrentAllowance, 500);
+        return () => clearTimeout(timeoutId);
+    }, [state.inputAmount, selectedInputAsset, address]);
+
+    // Check if the input token is approved for the required amount
+    const checkAllowance = async (tokenConfig: TokenConfig, amount: bigint) => {
+        if (!address || !publicClient) return false;
+
+        try {
+            const allowance: bigint = await publicClient.readContract({
+                address: tokenConfig.tokenAddress,
+                abi: [
+                    {
+                        constant: true,
+                        inputs: [
+                            { name: 'owner', type: 'address' },
+                            { name: 'spender', type: 'address' }
+                        ],
+                        name: 'allowance',
+                        outputs: [{ name: '', type: 'uint256' }],
+                        type: 'function'
+                    }
+                ],
+                functionName: 'allowance',
+                args: [address, tokenConfig.contractAddress]
+            }) as bigint;
+
+            return allowance >= amount;
+        } catch (error) {
+            console.error('Error checking allowance:', error);
+            return false;
+        }
+    };
+
+    // Request approval for the input token
+    const requestApproval = async () => {
+        if (!walletClient || !address || !state.inputAmount || !publicClient) return;
+
+        const tokenConfig = getTokenConfig(selectedInputAsset);
+        const decimals = tokenConfig.decimals;
+        const amount = BigInt(Math.floor(parseFloat(state.inputAmount) * 10 ** decimals));
+
+        updateState({ isApproving: true });
+
+        try {
+            const tx = await walletClient.writeContract({
+                address: tokenConfig.tokenAddress,
+                abi: [
+                    {
+                        constant: false,
+                        inputs: [
+                            { name: 'spender', type: 'address' },
+                            { name: 'amount', type: 'uint256' }
+                        ],
+                        name: 'approve',
+                        outputs: [{ name: '', type: 'bool' }],
+                        type: 'function'
+                    }
+                ],
+                functionName: 'approve',
+                args: [tokenConfig.contractAddress, amount]
+            });
+
+            await publicClient.waitForTransactionReceipt({ hash: tx });
+            updateState({ isApproved: true });
+        } catch (error: any) {
+            let errorMessage: string | null = null;
+            if (!(error instanceof UserRejectedRequestError) && !error.message.includes('rejected')) {
+                errorMessage = `Approval error: ${error.message}`;
+                updateState({ errorMessage });
+            }
+            // Don't rethrow the error for user rejections
+            if (errorMessage) {
+                throw error;
+            }
+        } finally {
+            updateState({ isApproving: false });
+        }
+    };
 
     const handleInputAmountChange = (value: string) => {
         if (!value || parseFloat(value) <= 0 || !selectedInputAsset) {
@@ -100,7 +199,7 @@ export function useSwap(
     };
 
     const requestSwap = async () => {
-        if (state.isSwapping || !state.inputAmount || !state.outputAmount) return;
+        if (state.isSwapping || !state.inputAmount || !state.outputAmount || !state.isApproved) return;
         if (!walletClient || !address) {
             console.error('Wallet not connected');
             return;
@@ -130,7 +229,12 @@ export function useSwap(
 
             const swapData = encodeSwapData(value.toString(), outputValue.toString(), decodedTronAddress);
             const signedTimestamp = Math.floor(Date.now() / 1000);
-            const transactionHash = await callCompactUsdc(swapData, walletClient, publicClient);
+            let transactionHash = null;
+            if (tokenConfig.symbol === 'USDT') {
+                transactionHash = await callCompactUsdt(swapData, walletClient, publicClient);
+            } else {
+                transactionHash = await callCompactUsdc(swapData, walletClient, publicClient);
+            }
 
             const baseTimestamp = Math.floor(Date.now() / 1000);
             updateState({
@@ -176,6 +280,7 @@ export function useSwap(
         state,
         handleInputAmountChange,
         handleOutputAmountChange,
+        requestApproval,
         requestSwap,
         clearErrorMessage,
         clearSuccess,

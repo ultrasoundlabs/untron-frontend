@@ -91,6 +91,8 @@ export default function SwapForm() {
     const {
         state: {
             isSwapping,
+            isApproving,
+            isApproved,
             errorMessage,
             inputAmount,
             inputConvertedAmount,
@@ -103,6 +105,7 @@ export default function SwapForm() {
         },
         handleInputAmountChange,
         handleOutputAmountChange,
+        requestApproval,
         requestSwap,
         clearErrorMessage,
         clearSuccess,
@@ -132,18 +135,18 @@ export default function SwapForm() {
                     ...pollOptions,
                     contractAddress: usdtTronAddress,
                     onSuccess: (transactionHash, blockTimestamp) => {
-                                if (baseTransactionTimestamp) {
-                                    const timeDiffSeconds = Math.floor(
-                                        (blockTimestamp - baseTransactionTimestamp * 1000) / 1000,
-                                    );
-                                    console.log(`Time between Base and Tron transactions: ${timeDiffSeconds} seconds`);
-                                }
+                        if (baseTransactionTimestamp) {
+                            const timeDiffSeconds = Math.floor(
+                                (blockTimestamp - baseTransactionTimestamp * 1000) / 1000,
+                            );
+                            console.log(`Time between Base and Tron transactions: ${timeDiffSeconds} seconds`);
+                        }
 
-                                setTronTransaction({
-                                    url: `https://tronscan.org/#/transaction/${transactionHash}`,
-                                    timestamp: Math.floor(blockTimestamp / 1000),
-                                    orderSignedAt: transaction?.orderSignedAt,
-                                });
+                        setTronTransaction({
+                            url: `https://tronscan.org/#/transaction/${transactionHash}`,
+                            timestamp: Math.floor(blockTimestamp / 1000),
+                            orderSignedAt: transaction?.orderSignedAt,
+                        });
                     },
                 });
             }
@@ -153,6 +156,36 @@ export default function SwapForm() {
     };
 
     const isSwapDisabled = !inputAmount || !tronAddress || insufficientFunds || maxOutputSurpassed;
+
+    const getButtonContent = ({ isConnecting }: { isConnecting: boolean }) => {
+        if (isConnecting || isSwapping || isApproving) {
+            return <SwapFormLoadingSpinner />;
+        }
+        
+        if (!address) {
+            return 'Connect Your Wallet';
+        }
+
+        if (!isApproved && inputAmount) {
+            return 'Approve';
+        }
+
+        return 'Swap';
+    };
+
+    const handleButtonClick = async ({ show }: { show?: () => void }) => {
+        if (!address) {
+            show?.();
+            return;
+        }
+
+        if (!isApproved && inputAmount) {
+            await requestApproval();
+            return;
+        }
+
+        await handleSwap();
+    };
 
     return (
         <div className={styles.Form}>
@@ -238,21 +271,9 @@ export default function SwapForm() {
                     <button
                         className={`${styles.Button} ${isSwapDisabled && isConnected ? styles.DisabledButton : ''}`}
                         disabled={isSwapDisabled && isConnected}
-                        onClick={() => {
-                            if (isConnected && address) {
-                                handleSwap();
-                            } else {
-                                show?.();
-                            }
-                        }}
+                        onClick={() => handleButtonClick({ show })}
                     >
-                        {isConnecting || isSwapping ? (
-                            <SwapFormLoadingSpinner />
-                        ) : address ? (
-                            'Swap'
-                        ) : (
-                            'Connect Your Wallet'
-                        )}
+                        {getButtonContent({ isConnecting })}
                     </button>
                 )}
             </ConnectKitButton.Custom>
