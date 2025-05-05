@@ -29,10 +29,6 @@ export default function UntronInterface() {
     setTimeout(() => setCopied(false), 1000)
   }
 
-  // SquareTimer already drives the countdown via `onTimeChange`.
-  // Local logic removed to avoid double‐ticking.
-  }, [timeLeft])
-
   // Format time as mm:ss
   const formatTime = () => {
     const minutes = Math.floor(timeLeft / 60)
