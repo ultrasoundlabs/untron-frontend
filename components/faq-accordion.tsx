@@ -54,7 +54,7 @@ export default function FaqAccordion() {
       {faqItems.map((item, index) => (
         <motion.div 
           key={index} 
-          className="bg-white rounded-[22px] overflow-hidden"
+          className="bg-card rounded-[22px] overflow-hidden"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ 
@@ -100,7 +100,7 @@ export default function FaqAccordion() {
                       opacity: { duration: 0.07 }
                     }
                   }}
-                  className="mt-[4px] text-base font-normal text-[#8d8d8d] overflow-hidden"
+                  className="mt-[4px] text-base font-normal text-muted-foreground overflow-hidden"
                 >
                   <motion.p
                     initial={{ y: -10 }}

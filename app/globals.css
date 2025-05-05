@@ -14,7 +14,7 @@ body {
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
+    --background: 0 0% 96.5%; /* #f5f5f7 */
     --foreground: 0 0% 3.9%;
     --card: 0 0% 100%;
     --card-foreground: 0 0% 3.9%;
@@ -48,6 +48,9 @@ body {
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
     --font-geist: "Geist", sans-serif;
+    --timer-green: #00E0AC;
+    --timer-orange: #FFB547;
+    --timer-red: #FF002E;
   }
   .dark {
     --background: 0 0% 3.9%;
@@ -82,6 +85,9 @@ body {
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+    --timer-green: #00E0AC;
+    --timer-orange: #FFB547;
+    --timer-red: #FF002E;
   }
 }
 

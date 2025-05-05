@@ -43,7 +43,7 @@ export default function Home() {
   }
 
   return (
-    <div className={`min-h-screen bg-[#f5f5f7] flex flex-col ${geist.className}`}>
+    <div className={`min-h-screen bg-background flex flex-col ${geist.className}`}>
       <Header />
 
       <main className="flex-1 w-full mx-auto px-4 py-8 flex flex-col items-center">

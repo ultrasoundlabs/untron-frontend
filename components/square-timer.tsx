@@ -56,7 +56,7 @@ export default function SquareTimer({
 
   // color of phase
   const color =
-    ratio <= 0.1 ? '#FF002E' : ratio <= 0.4 ? '#FFB547' : '#00E0AC';
+    ratio <= 0.1 ? 'var(--timer-red)' : ratio <= 0.4 ? 'var(--timer-orange)' : 'var(--timer-green)';
 
   // Define path starting from the top center
   const getPath = () => {
@@ -108,7 +108,7 @@ export default function SquareTimer({
         <path
           d={getPath()}
           fill="none"
-          stroke="#EFEFEF"
+          stroke="var(--muted)"
           strokeWidth={stroke}
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -130,7 +130,7 @@ export default function SquareTimer({
 
       {/* QR-code or any children content - positioned with offset to account for the stroke */}
       <div 
-        className="absolute flex items-center justify-center bg-white"
+        className="absolute flex items-center justify-center bg-card"
         style={{ 
           borderRadius: `${borderRadius}px`,
           top: stroke,
