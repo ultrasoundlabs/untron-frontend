@@ -93,6 +93,8 @@ export default function SquareTimer({
       {/* SVG timer border - positioned with offset to center the stroke */}
       <svg
         className="absolute"
+        role="img"
+        aria-label={`Timer with ${left} seconds remaining out of ${total} seconds`}
         viewBox={`0 0 ${size} ${size}`}
         style={{ 
           width: size,
