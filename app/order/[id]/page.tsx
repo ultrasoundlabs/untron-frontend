@@ -1,6 +1,6 @@
 "use client"
 
-import UntronInterface from "@/untron-ui"
+import UntronInterface from "@/components/untron/untron-interface"
 
 interface OrderPageProps {
   params: {
