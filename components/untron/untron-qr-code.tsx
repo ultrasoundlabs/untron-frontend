@@ -63,7 +63,7 @@ export function UntronQrCode({ isMobile, timeLeft, formatTime, showQrOnMobile, o
   }
 
   return (
-    <div className="w-full lg:w-2/5 flex flex-col lg:items-end lg:pt-1">
+    <div className="w-full flex flex-col lg:items-end lg:pt-1 lg:pr-16">
       <SquareTimer 
         total={600} 
         currentTime={timeLeft} 
