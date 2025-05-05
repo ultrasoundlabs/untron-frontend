@@ -1,5 +1,5 @@
 import Image from "next/image"
-import { ChangeEvent, useState } from "react"
+import { ChangeEvent, useState, useEffect } from "react"
 
 interface CurrencyInputProps {
   label: string
@@ -20,6 +20,11 @@ export default function CurrencyInput({
 }: CurrencyInputProps) {
   const [inputValue, setInputValue] = useState(initialValue)
   
+  // Synchronize when the parent updates value
+  useEffect(() => {
+    setInputValue(initialValue)
+  }, [initialValue])
+  
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     // Only allow numbers and decimal point
     const newValue = e.target.value.replace(/[^0-9.]/g, '')
@@ -38,9 +43,16 @@ export default function CurrencyInput({
   return (
     <div className="bg-card rounded-[44px] pl-6 pr-[15px] w-full max-w-[560px] flex items-center h-[135px]">
       <div className="flex-1">
-        <p className="text-[18px] font-normal text-foreground mb-0 leading-none">{label}</p>
+        <label 
+          htmlFor={`currency-input-${currency}`}
+          className="text-[18px] font-normal text-foreground mb-0 leading-none block"
+        >
+          {label}
+        </label>
         <input
+          id={`currency-input-${currency}`}
           type="text"
+          inputMode="decimal"
           value={inputValue}
           onChange={handleInputChange}
           placeholder="0.0"
