@@ -29,16 +29,8 @@ export default function UntronInterface() {
     setTimeout(() => setCopied(false), 1000)
   }
 
-  // Timer logic
-  useEffect(() => {
-    if (timeLeft <= 0) return
-
-    const timer = setTimeout(() => {
-      setTimeLeft(timeLeft - 1)
-      setProgress((timeLeft - 1) / 600 * 100) // 600 s
-    }, 1000)
-
-    return () => clearTimeout(timer)
+  // SquareTimer already drives the countdown via `onTimeChange`.
+  // Local logic removed to avoid double‐ticking.
   }, [timeLeft])
 
   // Format time as mm:ss
