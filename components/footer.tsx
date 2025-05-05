@@ -1,5 +1,6 @@
 import Image from "next/image"
 import Link from "next/link"
+import { footerLinks } from "@/config/footer"
 
 export default function Footer() {
   return (
@@ -11,49 +12,21 @@ export default function Footer() {
           </div>
 
           <div className="flex-1 flex flex-wrap">
-            <div className="w-1/2 sm:w-1/3 mb-8 pr-4">
-              <h3 className="font-medium mb-1">Company</h3>
-              <ul className="space-y-0.5 text-base font-normal text-[#8d8d8d]">
-                <li>
-                  <Link href="#">Blog</Link>
-                </li>
-                <li>
-                  <Link href="#">About us</Link>
-                </li>
-                <li>
-                  <Link href="#">Terms of service</Link>
-                </li>
-                <li>
-                  <Link href="#">Privacy police</Link>
-                </li>
-                <li>
-                  <Link href="#">Brand assets</Link>
-                </li>
-              </ul>
-            </div>
-
-            <div className="w-1/2 sm:w-1/3 mb-8 pr-4 pl-4 sm:pl-0">
-              <h3 className="font-medium mb-1">Socials</h3>
-              <ul className="space-y-0.5 text-base font-normal text-[#8d8d8d]">
-                <li>
-                  <Link href="#">X / Twitter</Link>
-                </li>
-                <li>
-                  <Link href="#">Telegram</Link>
-                </li>
-                <li>
-                  <Link href="#">LinkedIn</Link>
-                </li>
-              </ul>
-            </div>
-
-            <div className="w-full sm:w-1/3">
-              <h3 className="font-medium mb-1">Contacts</h3>
-              <ul className="space-y-0.5 text-base font-normal text-[#8d8d8d]">
-                <li>SHPS (LLC) Ultrasound Labs</li>
-                <li>contact@ultrasoundlabs.org</li>
-              </ul>
-            </div>
+            {footerLinks.map((section, index) => (
+              <div 
+                key={section.title} 
+                className={`w-1/2 sm:w-1/3 mb-8 pr-4 ${index > 0 ? 'pl-4 sm:pl-0' : ''}`}
+              >
+                <h3 className="font-medium mb-1">{section.title}</h3>
+                <ul className="space-y-0.5 text-base font-normal text-[#8d8d8d]">
+                  {section.links.map((link) => (
+                    <li key={link.text}>
+                      <Link href={link.href}>{link.text}</Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
           </div>
         </div>
       </div>
