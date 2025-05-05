@@ -3,41 +3,20 @@
 import { useState } from "react"
 import { ChevronDown } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
+import { defaultFaqItems } from "../config/faq-items"
 
-interface FaqItem {
+export interface FaqItem {
   question: string
   answer: string
   emoji?: string
 }
 
-export default function FaqAccordion() {
-  const [openIndexes, setOpenIndexes] = useState<number[]>([])
+interface FaqAccordionProps {
+  items?: FaqItem[]
+}
 
-  const faqItems: FaqItem[] = [
-    {
-      question: "What's tron?",
-      answer:
-        "Tron is a blockchain-based decentralized platform that aims to build a free, global digital content entertainment system with distributed storage technology.",
-      emoji: "😳",
-    },
-    {
-      question: "What's ethereum?",
-      answer:
-        "Ethereum is a decentralized, open-source blockchain with smart contract functionality. It enables developers to build and deploy decentralized applications.",
-      emoji: "😍",
-    },
-    {
-      question: "How to use it?",
-      answer:
-        "Connect your wallet, enter the amount you want to swap, select the receiving currency, and click the Swap button to complete the transaction.",
-    },
-    {
-      question: "How to untron yourself?",
-      answer:
-        "To untron yourself, you need to follow our simple process of transferring your assets from Tron to another blockchain of your choice.",
-      emoji: "🤔",
-    },
-  ]
+export default function FaqAccordion({ items = defaultFaqItems }: FaqAccordionProps) {
+  const [openIndexes, setOpenIndexes] = useState<number[]>([])
 
   const toggleAccordion = (index: number) => {
     setOpenIndexes(prev => {
@@ -51,7 +30,7 @@ export default function FaqAccordion() {
 
   return (
     <div className="space-y-4">
-      {faqItems.map((item, index) => (
+      {items.map((item, index) => (
         <motion.div 
           key={index} 
           className="bg-card rounded-[22px] overflow-hidden"
