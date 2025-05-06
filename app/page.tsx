@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, KeyboardEvent, ChangeEvent } from "react"
-import { ChevronDown } from "lucide-react"
+import { useState, KeyboardEvent, ChangeEvent, useEffect } from "react"
+import { ChevronDown, Loader2 } from "lucide-react"
 import CurrencyInput from "@/components/currency-input"
 import FaqAccordion from "@/components/faq-accordion"
 import { motion, AnimatePresence } from "motion/react"
@@ -9,6 +9,24 @@ import { Geist } from "next/font/google"
 import Header from "@/components/header"
 import Footer from "@/components/footer"
 import { useRouter } from "next/navigation"
+import { useAccount, useDisconnect, useConfig } from "wagmi"
+import { API_BASE_URL, ApiInfoResponse, SWAP_RATE_UNITS } from "@/config/api"
+import { stringToUnits, unitsToString, DEFAULT_DECIMALS, convertSendToReceive } from "@/lib/units"
+import { getEnsAddress } from '@wagmi/core'
+import { normalize } from 'viem/ens'
+
+const isValidEVMAddress = (address: string): boolean => {
+  // Ethereum address validation (0x followed by 40 hex characters)
+  const ethRegex = /^0x[a-fA-F0-9]{40}$/
+  
+  return ethRegex.test(address)
+}
+
+const truncateAddress = (address: string) => {
+  if (!address) return ""
+  if (address.length <= 10) return address
+  return `${address.slice(0, 6)}...${address.slice(-4)}`
+}
 
 const geist = Geist({
   subsets: ["latin"],
@@ -21,20 +39,116 @@ export default function Home() {
   const [isSwapping, setIsSwapping] = useState(false)
   const [showArrowAndFaq, setShowArrowAndFaq] = useState(true)
   const [footerPosition, setFooterPosition] = useState(false)
+  const [isDisconnecting, setIsDisconnecting] = useState(false)
+  const [isPasteShaking, setIsPasteShaking] = useState(false)
+  const [showErrorPlaceholder, setShowErrorPlaceholder] = useState(false)
+  const [maxOrderSize, setMaxOrderSize] = useState<bigint>(0n)
+  const [sendAmount, setSendAmount] = useState("")
+  const [receiveAmount, setReceiveAmount] = useState("")
+  const [isResolvingEns, setIsResolvingEns] = useState(false)
+  const [resolvingEnsName, setResolvingEnsName] = useState("")
   const router = useRouter()
+  const { address: connectedAddress } = useAccount()
+  const { disconnect } = useDisconnect()
+  const config = useConfig()
+
+  // Fetch API info on component mount
+  useEffect(() => {
+    const fetchApiInfo = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/info`)
+        const data: ApiInfoResponse = await response.json()
+        setMaxOrderSize(stringToUnits(data.availableLiquidity.toString(), DEFAULT_DECIMALS))
+      } catch (error) {
+        console.error('Failed to fetch API info:', error)
+      }
+    }
+    fetchApiInfo()
+  }, [])
+
+  // Update receive amount when send amount changes (no floats)
+  useEffect(() => {
+    if (sendAmount) {
+      try {
+        const sendUnits = stringToUnits(sendAmount, DEFAULT_DECIMALS)
+        const receiveUnits = convertSendToReceive(sendUnits, SWAP_RATE_UNITS)
+        setReceiveAmount(unitsToString(receiveUnits, DEFAULT_DECIMALS))
+      } catch (e) {
+        setReceiveAmount("")
+      }
+    } else {
+      setReceiveAmount("")
+    }
+  }, [sendAmount])
+
+  // Set connected wallet address when it changes
+  useEffect(() => {
+    if (connectedAddress && !addressBadge && !isDisconnecting) {
+      setAddressBadge(connectedAddress)
+    }
+  }, [connectedAddress, addressBadge, isDisconnecting])
+
+  const resolveEnsAddress = async (ensName: string) => {
+    try {
+      setInputValue("")
+      const normalizedName = normalize(ensName)
+      const address = await getEnsAddress(config, {
+        name: normalizedName,
+      })
+      if (address) {
+        setAddressBadge(address)
+        setInputValue("")
+      } else {
+        setIsPasteShaking(true)
+        setShowErrorPlaceholder(true)
+        setTimeout(() => {
+          setIsPasteShaking(false)
+          setShowErrorPlaceholder(false)
+        }, 3000)
+      }
+    } catch (error) {
+      console.error('Failed to resolve ENS:', error)
+      setIsPasteShaking(true)
+      setShowErrorPlaceholder(true)
+      setTimeout(() => {
+        setIsPasteShaking(false)
+        setShowErrorPlaceholder(false)
+      }, 3000)
+    } finally {
+      setIsResolvingEns(false)
+      setResolvingEnsName("")
+    }
+  }
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && inputValue.trim()) {
-      setAddressBadge(inputValue.trim())
-      setInputValue("")
+      if (isValidEVMAddress(inputValue.trim())) {
+        setAddressBadge(inputValue.trim())
+        setInputValue("")
+      } else if (inputValue.trim().includes('.')) {
+        setIsResolvingEns(true)
+        setResolvingEnsName(inputValue.trim())
+        resolveEnsAddress(inputValue.trim())
+      } else {
+        setIsPasteShaking(true)
+        setShowErrorPlaceholder(true)
+        setTimeout(() => {
+          setIsPasteShaking(false)
+          setShowErrorPlaceholder(false)
+        }, 3000)
+      }
     }
   }
 
   const handlePaste = () => {
     navigator.clipboard.readText().then((text) => {
       if (text) {
-        setAddressBadge(text)
-        setInputValue("")
+        if (isValidEVMAddress(text)) {
+          setAddressBadge(text)
+          setInputValue("")
+        } else {
+          resolveEnsAddress(text)
+        }
       }
     }).catch(err => {
       console.error("Failed to read clipboard: ", err)
@@ -42,6 +156,15 @@ export default function Home() {
   }
 
   const clearBadge = () => {
+    // If we're clearing the connected wallet's address, disconnect the wallet
+    if (addressBadge === connectedAddress) {
+      setIsDisconnecting(true)
+      disconnect()
+      // Reset the disconnecting flag after a short delay to ensure the disconnection is processed
+      setTimeout(() => {
+        setIsDisconnecting(false)
+      }, 500)
+    }
     setAddressBadge(null)
   }
 
@@ -83,18 +206,24 @@ export default function Home() {
                 <div className="space-y-4">
                   <CurrencyInput
                     label="You send"
-                    value=""
+                    value={sendAmount}
                     currency="$0"
                     currencyIcon="/USDTtron.svg"
                     currencyName="USDT Tron"
+                    onChange={(val: string) => setSendAmount(val)}
+                    maxUnits={maxOrderSize}
                   />
 
                   <CurrencyInput
                     label="You receive"
-                    value=""
+                    value={receiveAmount}
                     currency="$0"
                     currencyIcon="/USDTarb.svg"
                     currencyName="USDT ARB"
+                    onChange={(val: string) => setSendAmount(val)}
+                    isReceive={true}
+                    swapRateUnits={SWAP_RATE_UNITS}
+                    maxUnits={maxOrderSize}
                   />
 
                   <div className="bg-white rounded-[22px] py-[14px] flex items-center">
@@ -111,19 +240,36 @@ export default function Home() {
                               transition={{ duration: 0.2 }}
                             >
                               <div className="bg-black text-white text-base font-medium px-4 py-1.5 rounded-full flex items-center">
-                                <span>{addressBadge}</span>
+                                <span>{truncateAddress(addressBadge)}</span>
                                 <button onClick={clearBadge} className="ml-2 text-lg leading-none">&times;</button>
                               </div>
                             </motion.div>
                           ) : (
-                            <input
-                              type="text"
-                              placeholder="ENS or Address"
-                              className="w-full outline-none text-black text-lg font-medium placeholder:text-lg placeholder:font-medium placeholder:text-[#B5B5B5]"
-                              value={inputValue}
-                              onChange={(e: ChangeEvent<HTMLInputElement>) => setInputValue(e.target.value)}
-                              onKeyDown={handleKeyDown}
-                            />
+                            <div className="relative w-full">
+                              <input
+                                type="text"
+                                className="w-full outline-none text-black text-lg font-medium bg-transparent"
+                                value={inputValue}
+                                onChange={(e: ChangeEvent<HTMLInputElement>) => setInputValue(e.target.value)}
+                                onKeyDown={handleKeyDown}
+                                placeholder={isResolvingEns && resolvingEnsName ? `Resolving ${resolvingEnsName}...` : (showErrorPlaceholder ? "Not an Ethereum address!" : "ENS or Address")}
+                                disabled={isResolvingEns}
+                              />
+                              <AnimatePresence>
+                                {inputValue === "" && !isResolvingEns && (
+                                  <motion.span
+                                    key={showErrorPlaceholder ? "error" : "default"}
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    transition={{ duration: 0.3 }}
+                                    className="absolute left-0 top-0 h-full flex items-center text-[#B5B5B5] text-lg font-medium pointer-events-none select-none"
+                                  >
+                                    {showErrorPlaceholder ? "Not an Ethereum address!" : "ENS or Address"}
+                                  </motion.span>
+                                )}
+                              </AnimatePresence>
+                            </div>
                           )}
                         </AnimatePresence>
                       </div>
@@ -136,6 +282,10 @@ export default function Home() {
                             onClick={handlePaste}
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
+                            animate={isPasteShaking ? {
+                              x: [0, -10, 10, -10, 10, 0],
+                              transition: { duration: 0.5 }
+                            } : {}}
                           >
                             Paste
                           </motion.button>
@@ -154,8 +304,11 @@ export default function Home() {
                   </div>
 
                   <button 
-                    className="w-full bg-black text-white py-4 rounded-[22px] text-[24px] font-medium"
+                    className={`w-full py-4 rounded-[22px] text-[24px] font-medium bg-black text-white transition-colors ${
+                      !addressBadge || !sendAmount ? 'hover:bg-gray-300 hover:text-gray-500 cursor-not-allowed' : ''
+                    }`}
                     onClick={handleSwap}
+                    disabled={!addressBadge || !sendAmount}
                   >
                     Swap
                   </button>
@@ -174,11 +327,24 @@ export default function Home() {
                 transition={{ duration: 0.3 }}
               >
                 <div className="flex justify-center pt-[72px] pb-[104px]">
-                  <ChevronDown className="w-14 h-14 text-black" />
+                  <motion.div
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <ChevronDown className="w-14 h-14 text-black" />
+                  </motion.div>
                 </div>
 
                 <div className="w-full max-w-[1200px] mt-8 mb-[80px]">
-                  <h2 className="text-[32px] font-medium text-center mb-4">FAQ</h2>
+                  <motion.h2
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ duration: 0.3 }}
+                    className="text-[32px] font-medium text-center mb-4"
+                  >
+                    FAQ
+                  </motion.h2>
                   <FaqAccordion />
                 </div>
               </motion.div>

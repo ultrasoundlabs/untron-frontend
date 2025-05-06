@@ -1,5 +1,6 @@
 import Image from "next/image"
 import { ChangeEvent, useState, useEffect } from "react"
+import { stringToUnits, DEFAULT_DECIMALS, unitsToString, convertReceiveToSend } from "@/lib/units"
 
 interface CurrencyInputProps {
   label: string
@@ -8,6 +9,9 @@ interface CurrencyInputProps {
   currencyIcon: string
   currencyName?: string
   onChange?: (value: string) => void
+  maxUnits?: bigint
+  isReceive?: boolean
+  swapRateUnits?: bigint
 }
 
 export default function CurrencyInput({ 
@@ -16,9 +20,13 @@ export default function CurrencyInput({
   currency, 
   currencyIcon, 
   currencyName,
-  onChange
+  onChange,
+  maxUnits,
+  isReceive = false,
+  swapRateUnits
 }: CurrencyInputProps) {
   const [inputValue, setInputValue] = useState(initialValue)
+  const [error, setError] = useState<string | null>(null)
   
   // Synchronize when the parent updates value
   useEffect(() => {
@@ -32,6 +40,49 @@ export default function CurrencyInput({
     // Prevent multiple decimal points
     if (newValue.split('.').length > 2) {
       return
+    }
+
+    // For receive input, calculate the send amount
+    if (isReceive && swapRateUnits && newValue) {
+      try {
+        const receiveUnits = stringToUnits(newValue, DEFAULT_DECIMALS)
+        // Calculate send units using helper (rounded)
+        const sendUnits = convertReceiveToSend(receiveUnits, swapRateUnits)
+        const sendValue = unitsToString(sendUnits, DEFAULT_DECIMALS)
+        
+        // Validate against max amount if provided
+        if (typeof maxUnits === "bigint" && maxUnits > 0n) {
+          if (sendUnits > maxUnits) {
+            const maxDisplay = unitsToString(maxUnits, DEFAULT_DECIMALS)
+            setError(`Maximum amount is ${maxDisplay} USDT`)
+            return
+          }
+        }
+        
+        setError(null)
+        setInputValue(newValue)
+        if (onChange) {
+          onChange(sendValue)
+        }
+        return
+      } catch (e) {
+        setError("Invalid amount")
+        return
+      }
+    }
+
+    // For send input, validate against max amount if provided
+    if (typeof maxUnits === "bigint" && maxUnits > 0n && newValue) {
+      const newUnits = stringToUnits(newValue, DEFAULT_DECIMALS)
+
+      if (newUnits > maxUnits) {
+        // Convert maxUnits back to display string for message
+        const maxDisplay = unitsToString(maxUnits, DEFAULT_DECIMALS)
+        setError(`Maximum amount is ${maxDisplay} USDT`)
+        return
+      } else {
+        setError(null)
+      }
     }
     
     setInputValue(newValue)
@@ -58,7 +109,10 @@ export default function CurrencyInput({
           placeholder="0.0"
           className="text-[36px] font-semibold outline-none w-full text-foreground p-0 leading-none placeholder:text-muted-foreground"
         />
-        <p className="text-normal text-muted-foreground mt-[0px] leading-none">{currency}</p>
+        <div className="flex items-center justify-between">
+          <p className="text-normal text-muted-foreground mt-[0px] leading-none">{currency}</p>
+          {error && <p className="text-sm text-red-500">{error}</p>}
+        </div>
       </div>
       <div className="flex items-center justify-center pt-[40px] pb-[32px]">
         <Image

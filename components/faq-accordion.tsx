@@ -42,11 +42,11 @@ export default function FaqAccordion({ items = defaultFaqItems }: FaqAccordionPr
             ease: "easeOut"
           }}
         >
-          <div className="px-6 py-[22px]">
-            <div 
-              className="w-full flex items-center justify-between text-left cursor-pointer" 
-              onClick={() => toggleAccordion(index)}
-            >
+          <div 
+            className="px-6 py-[22px] cursor-pointer" 
+            onClick={() => toggleAccordion(index)}
+          >
+            <div className="w-full flex items-center justify-between text-left">
               <span className="font-medium text-lg flex items-center">
                 {item.question}
                 {item.emoji && <span className="ml-1">{item.emoji}</span>}

@@ -14,7 +14,7 @@ import { UntronDetails } from "@/components/untron/untron-details"
 import { UntronQrCode } from "@/components/untron/untron-qr-code"
 import Footer from "../footer"
 
-export default function UntronInterface() {
+export default function UntronInterface({ orderId }: { orderId: string }) {
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [showQrOnMobile, setShowQrOnMobile] = useState(false)
   const isMobile = useIsMobile()
