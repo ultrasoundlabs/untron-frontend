@@ -104,9 +104,14 @@ export default function UntronInterface() {
         </motion.div>
       </main>
 
-      <div className="mt-auto">
+      <motion.div 
+        className="mt-auto"
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.3, delay: 0.5 }}
+      >
         <Footer />
-      </div>
+      </motion.div>
     </div>
   )
 } 
