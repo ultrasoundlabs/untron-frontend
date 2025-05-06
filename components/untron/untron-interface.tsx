@@ -1,25 +1,108 @@
 "use client"
 
 import { useState } from "react"
-import { ArrowRight, ChevronUp, ChevronDown, QrCode, X } from "lucide-react"
+import { ChevronUp, ChevronDown } from "lucide-react"
 import Header from "@/components/header"
-import SquareTimer from "@/components/square-timer"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { motion, AnimatePresence } from "motion/react"
 import { useUntronTimer } from "@/hooks/use-untron-timer"
 import { useUntronCopy } from "@/hooks/use-untron-copy"
+import { convertSendToReceive } from "@/lib/units"
 import { UntronExchange } from "@/components/untron/untron-exchange"
 import { UntronDepositAddress } from "@/components/untron/untron-deposit-address"
 import { UntronDetails } from "@/components/untron/untron-details"
 import { UntronQrCode } from "@/components/untron/untron-qr-code"
-import Footer from "../footer"
+import Footer from "@/components/footer"
+import useSWR from "swr"
+
+const fetcher = async (url: string) => {
+  const res = await fetch(url)
+  if (!res.ok) {
+    throw new Error(`Server error: ${res.status}`)
+  }
+  const data = await res.json()
+  if (data.error) {
+    throw new Error(data.error)
+  }
+  return data
+}
 
 export default function UntronInterface({ orderId }: { orderId: string }) {
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [showQrOnMobile, setShowQrOnMobile] = useState(false)
   const isMobile = useIsMobile()
-  const { timeLeft, formatTime } = useUntronTimer()
-  const { copied, handleCopy } = useUntronCopy()
+
+  const { data: orderData } = useSWR(orderId ? `https://untron.finance/api/v2/order/${orderId}` : null, fetcher, {
+    refreshInterval: 10_000 // poll every 10s
+  })
+
+  // Extract and transform data according to the new schema once it is available
+  const transformed = orderData
+    ? (() => {
+        // All numeric values coming from the backend are integers, so we can safely use normal JS numbers
+        const {
+          order: { receiver, fromAmount, rate, toChain, toCoin, expiresAtS },
+          state: { receivedTotal: alreadyReceived, sentTxHash, sentAtS }
+        } = orderData as {
+          order: {
+            receiver: string
+            fromAmount: number
+            rate: number
+            toChain: number
+            toCoin: string
+            expiresAtS: number
+          }
+          state: {
+            receivedTotal: number
+            sentTxHash: string
+            sentAtS: number
+            expiresAtS: number
+          }
+        }
+
+        // Remaining amount to send on Tron side
+        const sentTotal: bigint = BigInt(fromAmount) - BigInt(alreadyReceived)
+        // Calculate destination amount using helper to maintain precision
+        const receivedTotal: bigint = convertSendToReceive(BigInt(fromAmount), BigInt(rate))
+
+        return {
+          receiver,
+          toChain,
+          toCoin,
+          sentTotal,
+          receivedTotal,
+          sentTxHash,
+          sentAtS,
+          expiresAtS,
+        }
+      })()
+    : null
+
+  const initialSeconds = transformed
+    ? Math.max(0, transformed.expiresAtS - Math.floor(Date.now() / 1000))
+    : 600
+
+  const { timeLeft, formatTime } = useUntronTimer(initialSeconds)
+
+  const { copied, handleCopy } = useUntronCopy(transformed?.receiver ?? "")
+
+  if (!transformed) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-muted-foreground">Loading...</div>
+    )
+  }
+
+  if ((orderData as any)?.error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-red-500">
+        Error: {(orderData as any).error}
+      </div>
+    )
+  }
+
+  // destructure values from the transformed object
+  const { receiver, receivedTotal, sentTotal, toChain, toCoin, sentTxHash } = transformed
+  const beneficiary = (orderData as any)?.order?.beneficiary ?? null // beneficiary from new schema
 
   return (
     <div className="min-h-screen bg-background font-geist flex flex-col">
@@ -49,7 +132,12 @@ export default function UntronInterface({ orderId }: { orderId: string }) {
               animate={{ y: 0, opacity: 1 }}
               transition={{ duration: 0.3, delay: 0.1 }}
             >
-              <UntronExchange />
+              <UntronExchange 
+                sentTotal={sentTotal}
+                receivedTotal={receivedTotal}
+                toChain={toChain}
+                toCoin={toCoin}
+              />
             </motion.div>
 
             <motion.div
@@ -63,6 +151,7 @@ export default function UntronInterface({ orderId }: { orderId: string }) {
                 handleCopy={handleCopy} 
                 isMobile={isMobile}
                 onShowQr={() => setShowQrOnMobile(true)}
+                depositAddress={receiver}
               />
             </motion.div>
 
@@ -73,7 +162,7 @@ export default function UntronInterface({ orderId }: { orderId: string }) {
               transition={{ duration: 0.3, delay: 0.3 }}
             >
               <div className="flex items-center justify-between mb-4">
-                <div className="text-muted-foreground text-[16px] font-regular">Receive address: 0xd208794A...77379452A</div>
+                <div className="text-muted-foreground text-[16px] font-regular">Recipient address: {beneficiary}</div>
                 <motion.button
                   onClick={() => setDetailsOpen(!detailsOpen)}
                   className="flex items-center text-muted-foreground text-[16px] font-regular"
@@ -83,7 +172,17 @@ export default function UntronInterface({ orderId }: { orderId: string }) {
                 </motion.button>
               </div>
 
-              <UntronDetails isOpen={detailsOpen} />
+              <UntronDetails
+                isOpen={detailsOpen}
+                order={{
+                  sentTotal,
+                  receivedTotal,
+                  sentTxHash,
+                  toCoin,
+                  toChain,
+                  receiver,
+                }}
+              />
             </motion.div>
           </AnimatePresence>
         </div>
@@ -98,6 +197,7 @@ export default function UntronInterface({ orderId }: { orderId: string }) {
             isMobile={isMobile} 
             timeLeft={timeLeft} 
             formatTime={formatTime}
+            // totalTime={initialSeconds}
             showQrOnMobile={showQrOnMobile}
             onCloseQr={() => setShowQrOnMobile(false)}
           />

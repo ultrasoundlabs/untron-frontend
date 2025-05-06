@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 
-export function useUntronTimer() {
-  const [timeLeft, setTimeLeft] = useState(600) // 10 minutes in seconds
+export function useUntronTimer(initialSeconds: number = 600) {
+  const [timeLeft, setTimeLeft] = useState(initialSeconds) // seconds remaining
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -13,6 +13,10 @@ export function useUntronTimer() {
 
     return () => clearInterval(timer)
   }, [])
+
+  useEffect(() => {
+    setTimeLeft(initialSeconds)
+  }, [initialSeconds])
 
   const formatTime = () => {
     const minutes = Math.floor(timeLeft / 60)

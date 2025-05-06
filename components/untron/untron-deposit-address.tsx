@@ -6,16 +6,17 @@ interface UntronDepositAddressProps {
   handleCopy: () => void
   isMobile: boolean
   onShowQr: () => void
+  depositAddress: string
 }
 
-export function UntronDepositAddress({ copied, handleCopy, isMobile, onShowQr }: UntronDepositAddressProps) {
+export function UntronDepositAddress({ copied, handleCopy, isMobile, onShowQr, depositAddress }: UntronDepositAddressProps) {
   return (
     <div className="mb-4 w-full">
       <div className="bg-card rounded-[22px] py-3 px-4 w-full">
         <div className="text-[18px] text-muted-foreground font-regular mb-[0px]">Deposit address</div>
         <div className="flex items-center justify-between w-full flex-wrap sm:flex-nowrap gap-2 sm:gap-0">
           <div className="text-[18px] font-medium text-foreground truncate pr-2 w-full sm:w-auto">
-            TU1fnjgPk3sWvZxKUGtfc8JJzbdSrwagZk
+            {depositAddress}
           </div>
           <div className="flex-shrink-0 ml-auto sm:ml-0 flex gap-2">
             <motion.button 
