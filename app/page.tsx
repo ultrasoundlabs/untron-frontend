@@ -47,6 +47,8 @@ export default function Home() {
   const [receiveAmount, setReceiveAmount] = useState("")
   const [isResolvingEns, setIsResolvingEns] = useState(false)
   const [resolvingEnsName, setResolvingEnsName] = useState("")
+  const [isContentHidden, setIsContentHidden] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const router = useRouter()
   const { address: connectedAddress } = useAccount()
   const { disconnect } = useDisconnect()
@@ -168,19 +170,54 @@ export default function Home() {
     setAddressBadge(null)
   }
 
-  const handleSwap = () => {
+  const handleSwap = async () => {
+    if (!addressBadge || !sendAmount || isSwapping) return
+
     setIsSwapping(true)
-    setShowArrowAndFaq(false)
-    
-    // After arrow and FAQ disappear
-    setTimeout(() => {
-      setFooterPosition(true)
-      
-      // After footer moves up
-      setTimeout(() => {
-        router.push('/order/123') // Placeholder ID
-      }, 300)
-    }, 300)
+    setErrorMessage(null)
+
+    try {
+      // Convert the amount the user entered to the smallest units (6 decimals)
+      const fromUnits = stringToUnits(sendAmount, DEFAULT_DECIMALS)
+
+      const response = await fetch("https://untron.finance/api/v2-public/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          toCoin: "usdt",
+          toChain: 42161,
+          fromAmount: Number(fromUnits.toString()),
+          rate: Number(SWAP_RATE_UNITS.toString()),
+          beneficiary: addressBadge,
+        }),
+      })
+
+      // If the response is not OK, treat it as an error right away
+      if (!response.ok) {
+        throw new Error(`Unexpected status code ${response.status}`)
+      }
+
+      const data = await response.json()
+
+      if (data?.id) {
+        // Trigger exit animations
+        setShowArrowAndFaq(false)
+        setIsContentHidden(true)
+
+        // Give the exit animations ~0.3s to play before navigation
+        setTimeout(() => {
+          router.push(`/order/${data.id}`)
+        }, 300)
+      } else {
+        throw new Error("Missing order id in response")
+      }
+    } catch (error) {
+      console.error("Order creation failed:", error)
+      setErrorMessage("You've made too many orders. Please try again later.")
+      // Re-enable UI so the user can try again
+      setIsSwapping(false)
+      setShowArrowAndFaq(true)
+    }
   }
 
   return (
@@ -190,7 +227,7 @@ export default function Home() {
       <main className="flex-1 w-full mx-auto px-4 py-8 flex flex-col items-center">
         <div className="w-full max-w-[560px]">
           <AnimatePresence>
-            {!isSwapping && (
+            {!isContentHidden && (
               <motion.div
                 className="space-y-4"
                 initial={{ y: 20, opacity: 0 }}
@@ -306,14 +343,22 @@ export default function Home() {
                   </div>
 
                   <button 
-                    className={`w-full py-4 rounded-[22px] text-[24px] font-medium bg-black text-white transition-colors ${
-                      !addressBadge || !sendAmount ? 'hover:bg-gray-300 hover:text-gray-500 cursor-not-allowed' : ''
+                    className={`w-full py-4 rounded-[22px] text-[24px] font-medium bg-black text-white transition-colors flex justify-center items-center ${
+                      (!addressBadge || !sendAmount || isSwapping) ? 'hover:bg-gray-300 hover:text-gray-500 cursor-not-allowed' : ''
                     }`}
                     onClick={handleSwap}
-                    disabled={!addressBadge || !sendAmount}
+                    disabled={!addressBadge || !sendAmount || isSwapping}
                   >
-                    Swap
+                    {isSwapping ? (
+                      <Loader2 className="animate-spin w-6 h-6" />
+                    ) : (
+                      "Swap"
+                    )}
                   </button>
+
+                  {errorMessage && (
+                    <p className="text-center text-red-500 mt-2 text-base">{errorMessage}</p>
+                  )}
 
                   <p className="text-center text-regular text-[#8d8d8d] text-[18px]">I only have a Tron wallet</p>
                 </div>
@@ -356,7 +401,7 @@ export default function Home() {
       </main>
 
       <AnimatePresence>
-        {!isSwapping && (
+        {!isContentHidden && (
           <motion.div
             initial={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}

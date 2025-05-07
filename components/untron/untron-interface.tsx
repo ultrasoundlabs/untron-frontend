@@ -71,7 +71,7 @@ export default function UntronInterface({ orderId }: { orderId: string }) {
         const remainingToSend: bigint = BigInt(fromAmount) - BigInt(tronSentTotal)
 
         // Amount the user would receive on the destination chain for what is still left to send
-        const expectedReceiveForRemaining: bigint = convertSendToReceive(remainingToSend, BigInt(rate))
+        const expectedReceiveForRemaining: bigint = convertSendToReceive(BigInt(fromAmount), BigInt(rate))
 
         return {
           receiver,
