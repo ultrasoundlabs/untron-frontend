@@ -19,13 +19,13 @@ export default function ThemeToggle() {
     <button
       type="button"
       aria-label={`Switch to ${nextTheme} mode`}
-      onClick={() => setTheme(nextTheme)}
-      className="p-2 rounded-full bg-secondary hover:bg-secondary/75 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      disabled
+      className="p-2 rounded-full bg-secondary/50 cursor-not-allowed transition-colors focus:outline-none"
     >
       {mounted && currentTheme === 'dark' ? (
-        <Sun className="w-5 h-5" />
+        <Sun className="w-5 h-5 text-muted-foreground" />
       ) : (
-        <Moon className="w-5 h-5" />
+        <Moon className="w-5 h-5 text-muted-foreground" />
       )}
     </button>
   )

@@ -223,7 +223,6 @@ export default function Home() {
   return (
     <div className={`min-h-screen bg-background flex flex-col ${geist.className}`} >
       <Header />
-
       <main className="flex-1 w-full mx-auto px-4 py-8 flex flex-col items-center">
         <div className="w-full max-w-[560px]">
           <AnimatePresence>
@@ -236,7 +235,16 @@ export default function Home() {
                 transition={{ duration: 0.3 }}
               >
                 <div className="text-center mb-8">
-                  <h1 className="text-2xl font-medium text-[#1c1c1c]">Good evening!</h1>
+                  <h1 className="text-2xl font-medium text-[#1c1c1c]">
+                    {(() => {
+                      const hour = new Date().getHours();
+                      if (hour < 5) return "Good late night!";
+                      if (hour < 12) return "Good morning!";
+                      if (hour < 18) return "Good afternoon!";
+                      if (hour < 22) return "Good evening!";
+                      return "Good late night!";
+                    })()}
+                  </h1>
                   <h1 className="text-2xl font-medium text-[#8d8d8d]">Let's transfer now.</h1>
                 </div>
 
@@ -352,7 +360,7 @@ export default function Home() {
                     {isSwapping ? (
                       <Loader2 className="animate-spin w-6 h-6" />
                     ) : (
-                      "Swap"
+                      "Untron!"
                     )}
                   </button>
 

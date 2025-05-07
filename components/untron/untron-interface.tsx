@@ -35,7 +35,7 @@ export default function UntronInterface({ orderId }: { orderId: string }) {
   const isMobile = useIsMobile()
 
   const { data: orderData, isLoading } = useSWR(orderId ? `https://untron.finance/api/v2/order/${orderId}` : null, fetcher, {
-    refreshInterval: 10_000 // poll every 10s
+    refreshInterval: 3_000 // poll every 3s
   })
 
   // Debug log for orderData
@@ -151,8 +151,7 @@ export default function UntronInterface({ orderId }: { orderId: string }) {
   } = transformed
   const beneficiary = (orderData as any)?.order?.beneficiary ?? null // beneficiary from new schema
 
-  // show success when timer ended or order is closed
-  const showSuccess = timeLeft === 0 || status === "closed"
+  const showSuccess = status === "closed"
 
   if (showSuccess) {
     return (
@@ -205,7 +204,7 @@ export default function UntronInterface({ orderId }: { orderId: string }) {
               transition={{ duration: 0.3 }}
             >
               <h1 className="text-3xl font-medium text-foreground flex items-center">
-                Untroning
+                Untroning 🤫
                 {isMobile && (
                   <span className="ml-2 text-3xl font-medium">- {formatTime()}</span>
                 )}

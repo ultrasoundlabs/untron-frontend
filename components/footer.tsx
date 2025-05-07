@@ -21,7 +21,7 @@ export default function Footer() {
                 <ul className="space-y-0.5 text-base font-normal text-muted-foreground">
                   {section.links.map((link) => (
                     <li key={link.text}>
-                      <Link href={link.href}>{link.text}</Link>
+                      <Link href={link.href} target="_blank" rel="noopener noreferrer">{link.text}</Link>
                     </li>
                   ))}
                 </ul>

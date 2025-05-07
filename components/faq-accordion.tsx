@@ -81,14 +81,13 @@ export default function FaqAccordion({ items = defaultFaqItems }: FaqAccordionPr
                   }}
                   className="mt-[4px] text-base font-normal text-muted-foreground overflow-hidden"
                 >
-                  <motion.p
+                  <motion.div
                     initial={{ y: -10 }}
                     animate={{ y: 0 }}
                     exit={{ y: -10 }}
                     transition={{ duration: 0.07 }}
-                  >
-                    {item.answer}
-                  </motion.p>
+                    dangerouslySetInnerHTML={{ __html: item.answer }}
+                  />
                 </motion.div>
               )}
             </AnimatePresence>
