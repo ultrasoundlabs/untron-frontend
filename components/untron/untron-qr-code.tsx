@@ -1,6 +1,7 @@
 import { X } from "lucide-react"
 import { motion, AnimatePresence } from "motion/react"
 import SquareTimer from "@/components/square-timer"
+import QRCode from "react-qr-code"
 
 interface UntronQrCodeProps {
   isMobile: boolean
@@ -8,9 +9,11 @@ interface UntronQrCodeProps {
   formatTime: () => string
   showQrOnMobile: boolean
   onCloseQr: () => void
+  /** Tron USDT receiver address */
+  depositAddress: string
 }
 
-export function UntronQrCode({ isMobile, timeLeft, formatTime, showQrOnMobile, onCloseQr }: UntronQrCodeProps) {
+export function UntronQrCode({ isMobile, timeLeft, formatTime, showQrOnMobile, onCloseQr, depositAddress }: UntronQrCodeProps) {
   const getTimeColor = () => {
     const ratio = timeLeft / 600 // 600 is the total time
     if (ratio <= 0.1) return "var(--timer-red)"
@@ -56,8 +59,13 @@ export function UntronQrCode({ isMobile, timeLeft, formatTime, showQrOnMobile, o
                     size={250}
                     stroke={8}
                   >
-                    <div className="w-[170px] h-[170px]">
-                      <img src="/qr-code.svg" alt="QR Code" className="w-full h-full" />
+                    <div className="w-[170px] h-[170px] flex items-center justify-center">
+                      <QRCode
+                        value={depositAddress}
+                        size={170}
+                        fgColor="#000000"
+                        bgColor="transparent"
+                      />
                     </div>
                   </SquareTimer>
                 </div>
@@ -78,8 +86,13 @@ export function UntronQrCode({ isMobile, timeLeft, formatTime, showQrOnMobile, o
         size={294}
         stroke={8}
       >
-        <div className="w-[202px] h-[202px]">
-          <img src="/qr-code.svg" alt="QR Code" className="w-full h-full" />
+        <div className="w-[202px] h-[202px] flex items-center justify-center">
+          <QRCode
+            value={depositAddress}
+            size={202}
+            fgColor="#000000"
+            bgColor="transparent"
+          />
         </div>
       </SquareTimer>
 

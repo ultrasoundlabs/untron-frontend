@@ -286,6 +286,7 @@ export default function UntronInterface({ orderId }: { orderId: string }) {
             // totalTime={initialSeconds}
             showQrOnMobile={showQrOnMobile}
             onCloseQr={() => setShowQrOnMobile(false)}
+            depositAddress={receiver}
           />
         </motion.div>
       </main>
