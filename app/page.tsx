@@ -58,7 +58,7 @@ export default function Home() {
       try {
         const response = await fetch(`${API_BASE_URL}/info`)
         const data: ApiInfoResponse = await response.json()
-        setMaxOrderSize(stringToUnits(data.availableLiquidity.toString(), DEFAULT_DECIMALS))
+        setMaxOrderSize(BigInt(data.availableLiquidity.toString()))
       } catch (error) {
         console.error('Failed to fetch API info:', error)
       }

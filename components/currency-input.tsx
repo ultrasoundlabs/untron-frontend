@@ -79,6 +79,13 @@ export default function CurrencyInput({
         // Convert maxUnits back to display string for message
         const maxDisplay = unitsToString(maxUnits, DEFAULT_DECIMALS)
         setError(`Maximum amount is ${maxDisplay} USDT`)
+        // Auto-adjust to max value, rounded down to the nearest integer
+        const maxInt = Math.floor(Number(maxDisplay))
+        const adjustedValue = maxInt.toString()
+        setInputValue(adjustedValue)
+        if (onChange) {
+          onChange(adjustedValue)
+        }
         return
       } else {
         setError(null)
