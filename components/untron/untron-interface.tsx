@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { ChevronUp, ChevronDown } from "lucide-react"
+import { ChevronUp, ChevronDown, Loader2 } from "lucide-react"
 import Header from "@/components/header"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { motion, AnimatePresence } from "motion/react"
@@ -14,6 +14,8 @@ import { UntronDetails } from "@/components/untron/untron-details"
 import { UntronQrCode } from "@/components/untron/untron-qr-code"
 import Footer from "@/components/footer"
 import useSWR from "swr"
+import { UntronSuccess } from "@/components/untron/untron-success"
+import { UntronExpiry } from "@/components/untron/untron-expiry"
 
 const fetcher = async (url: string) => {
   const res = await fetch(url)
@@ -32,9 +34,11 @@ export default function UntronInterface({ orderId }: { orderId: string }) {
   const [showQrOnMobile, setShowQrOnMobile] = useState(false)
   const isMobile = useIsMobile()
 
-  const { data: orderData } = useSWR(orderId ? `https://untron.finance/api/v2/order/${orderId}` : null, fetcher, {
+  const { data: orderData, isLoading } = useSWR(orderId ? `https://untron.finance/api/v2/order/${orderId}` : null, fetcher, {
     refreshInterval: 10_000 // poll every 10s
   })
+
+  // Debug log for orderData
 
   // Extract and transform data according to the new schema once it is available
   const transformed = orderData
@@ -42,7 +46,8 @@ export default function UntronInterface({ orderId }: { orderId: string }) {
         // All numeric values coming from the backend are integers, so we can safely use normal JS numbers
         const {
           order: { receiver, fromAmount, rate, toChain, toCoin, expiresAtS },
-          state: { receivedTotal: alreadyReceived, sentTxHash, sentAtS }
+          state: { receivedTotal: tronSentTotal, sentTotal: destReceivedTotal, sentTxHash, sentAtS },
+          status
         } = orderData as {
           order: {
             receiver: string
@@ -54,26 +59,34 @@ export default function UntronInterface({ orderId }: { orderId: string }) {
           }
           state: {
             receivedTotal: number
+            sentTotal: number
             sentTxHash: string
             sentAtS: number
             expiresAtS: number
           }
+          status: string
         }
 
-        // Remaining amount to send on Tron side
-        const sentTotal: bigint = BigInt(fromAmount) - BigInt(alreadyReceived)
-        // Calculate destination amount using helper to maintain precision
-        const receivedTotal: bigint = convertSendToReceive(BigInt(fromAmount), BigInt(rate))
+        // Amount still left to send on Tron side
+        const remainingToSend: bigint = BigInt(fromAmount) - BigInt(tronSentTotal)
+
+        // Amount the user would receive on the destination chain for what is still left to send
+        const expectedReceiveForRemaining: bigint = convertSendToReceive(remainingToSend, BigInt(rate))
 
         return {
           receiver,
           toChain,
           toCoin,
-          sentTotal,
-          receivedTotal,
+          // Remaining / expected amounts (used while the order is in-progress)
+          remainingToSend,
+          expectedReceiveForRemaining,
+          // Totals that were actually moved on-chain (used once the order is closed)
+          tronSentTotal: BigInt(tronSentTotal), // how much the user actually sent to Tron
+          destReceivedTotal: BigInt(destReceivedTotal ?? 0), // how much was released on the destination chain
           sentTxHash,
           sentAtS,
           expiresAtS,
+          status,
         }
       })()
     : null
@@ -86,9 +99,31 @@ export default function UntronInterface({ orderId }: { orderId: string }) {
 
   const { copied, handleCopy } = useUntronCopy(transformed?.receiver ?? "")
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background font-geist flex flex-col">
+        <Header />
+        <main className="w-full max-w-[1200px] mx-auto px-4 py-12 flex flex-col flex-grow items-center justify-center">
+          <div className="text-muted-foreground flex items-center gap-2">
+            {/* <Loader2 className="w-5 h-5 animate-spin" />
+            <span>Loading...</span> */}
+          </div>
+        </main>
+        <motion.div 
+          className="mt-auto"
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.3 }}
+        >
+          <Footer />
+        </motion.div>
+      </div>
+    )
+  }
+
   if (!transformed) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-muted-foreground">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center text-red-500">No order data found.</div>
     )
   }
 
@@ -101,8 +136,60 @@ export default function UntronInterface({ orderId }: { orderId: string }) {
   }
 
   // destructure values from the transformed object
-  const { receiver, receivedTotal, sentTotal, toChain, toCoin, sentTxHash } = transformed
+  const {
+    receiver,
+    // in-progress amounts
+    remainingToSend,
+    expectedReceiveForRemaining,
+    // finished order totals
+    tronSentTotal,
+    destReceivedTotal,
+    toChain,
+    toCoin,
+    sentTxHash,
+    status,
+  } = transformed
   const beneficiary = (orderData as any)?.order?.beneficiary ?? null // beneficiary from new schema
+
+  // show success when timer ended or order is closed
+  const showSuccess = timeLeft === 0 || status === "closed"
+
+  if (showSuccess) {
+    return (
+      <div className="min-h-screen bg-background font-geist flex flex-col">
+        <Header />
+        <main className="w-full max-w-[1200px] mx-auto px-4 py-12 flex flex-col flex-grow items-center justify-center">
+          {status === "closed" && destReceivedTotal === BigInt(0) ? (
+            <UntronExpiry
+              sentTotal={tronSentTotal}
+              receivedTotal={destReceivedTotal}
+              toChain={toChain}
+              toCoin={toCoin}
+              sentTxHash={sentTxHash}
+              receiver={receiver}
+            />
+          ) : (
+            <UntronSuccess
+              sentTotal={tronSentTotal}
+              receivedTotal={destReceivedTotal}
+              toChain={toChain}
+              toCoin={toCoin}
+              sentTxHash={sentTxHash}
+              receiver={receiver}
+            />
+          )}
+        </main>
+        <motion.div 
+          className="mt-auto"
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.3 }}
+        >
+          <Footer />
+        </motion.div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-background font-geist flex flex-col">
@@ -133,8 +220,8 @@ export default function UntronInterface({ orderId }: { orderId: string }) {
               transition={{ duration: 0.3, delay: 0.1 }}
             >
               <UntronExchange 
-                sentTotal={sentTotal}
-                receivedTotal={receivedTotal}
+                sentTotal={remainingToSend}
+                receivedTotal={expectedReceiveForRemaining}
                 toChain={toChain}
                 toCoin={toCoin}
               />
@@ -175,8 +262,8 @@ export default function UntronInterface({ orderId }: { orderId: string }) {
               <UntronDetails
                 isOpen={detailsOpen}
                 order={{
-                  sentTotal,
-                  receivedTotal,
+                  sentTotal: remainingToSend,
+                  receivedTotal: expectedReceiveForRemaining,
                   sentTxHash,
                   toCoin,
                   toChain,

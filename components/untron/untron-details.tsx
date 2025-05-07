@@ -30,20 +30,20 @@ export function UntronDetails({ isOpen, order }: UntronDetailsProps) {
     >
       <div className="flex flex-col gap-[5px] text-[16px] text-muted-foreground">
         <div className="flex justify-between">
-          <span className="font-regular">Send total</span>
+          <span className="font-regular">Amount to send</span>
           <span className="font-medium text-foreground">{unitsToString(sentTotal)} {toCoin.toUpperCase()} TRC20</span>
         </div>
         <div className="flex justify-between">
-          <span className="font-regular">Receive total</span>
+          <span className="font-regular">Amount to receive</span>
           <span className="font-medium text-foreground">{unitsToString(receivedTotal)} {toCoin.toUpperCase()} {toChainInfo.name}</span>
         </div>
         <div className="flex justify-between">
-          <span className="font-regular">Receive address</span>
+          <span className="font-regular">Send TRC20 to</span>
           <span className="font-medium text-foreground">{receiver.slice(0, 8)}...{receiver.slice(-6)}</span>
         </div>
         {sentTxHash && (
           <div className="flex justify-between">
-            <span className="font-regular">Send transaction</span>
+            <span className="font-regular">Funds released</span>
             <a
               href={`${toChainInfo.explorer}${sentTxHash}`}
               target="_blank"

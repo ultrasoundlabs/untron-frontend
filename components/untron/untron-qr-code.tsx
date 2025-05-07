@@ -11,6 +11,13 @@ interface UntronQrCodeProps {
 }
 
 export function UntronQrCode({ isMobile, timeLeft, formatTime, showQrOnMobile, onCloseQr }: UntronQrCodeProps) {
+  const getTimeColor = () => {
+    const ratio = timeLeft / 600 // 600 is the total time
+    if (ratio <= 0.1) return "var(--timer-red)"
+    if (ratio <= 0.4) return "var(--timer-orange)"
+    return "var(--foreground)"
+  }
+
   if (isMobile) {
     return (
       <AnimatePresence>
@@ -77,7 +84,7 @@ export function UntronQrCode({ isMobile, timeLeft, formatTime, showQrOnMobile, o
       </SquareTimer>
 
       <div className="mt-[18px] text-center w-[302px] ml-[4px]">
-        <div className="text-[30px] font-medium">{formatTime()}</div>
+        <div className="text-[30px] font-medium" style={{ color: getTimeColor() }}>{formatTime()}</div>
         <div className="mt-[2px] text-[16px] font-regular text-muted-foreground">Waiting for transfer...</div>
       </div>
     </div>
