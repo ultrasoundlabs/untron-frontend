@@ -1,6 +1,6 @@
 import Image from "next/image"
 import { ChangeEvent, useState, useEffect } from "react"
-import { stringToUnits, DEFAULT_DECIMALS, unitsToString, convertReceiveToSend } from "@/lib/units"
+import { stringToUnits, DEFAULT_DECIMALS, unitsToString, convertReceiveToSend, convertSendToReceive, SCALING_FACTOR } from "@/lib/units"
 
 interface CurrencyInputProps {
   label: string
@@ -12,6 +12,7 @@ interface CurrencyInputProps {
   maxUnits?: bigint
   isReceive?: boolean
   swapRateUnits?: bigint
+  showMaxOutput?: boolean
 }
 
 export default function CurrencyInput({ 
@@ -23,10 +24,11 @@ export default function CurrencyInput({
   onChange,
   maxUnits,
   isReceive = false,
-  swapRateUnits
+  swapRateUnits,
+  showMaxOutput = false
 }: CurrencyInputProps) {
   const [inputValue, setInputValue] = useState(initialValue)
-  const [error, setError] = useState<string | null>(null)
+  const [showMaxWarning, setShowMaxWarning] = useState(false)
   
   // Synchronize when the parent updates value
   useEffect(() => {
@@ -50,45 +52,91 @@ export default function CurrencyInput({
         const sendUnits = convertReceiveToSend(receiveUnits, swapRateUnits)
         const sendValue = unitsToString(sendUnits, DEFAULT_DECIMALS)
         
-        // Validate against max amount if provided
+        // Validate against maximum output liquidity (receive side)
         if (typeof maxUnits === "bigint" && maxUnits > 0n) {
-          if (sendUnits > maxUnits) {
-            const maxDisplay = unitsToString(maxUnits, DEFAULT_DECIMALS)
-            setError(`Maximum amount is ${maxDisplay} USDT`)
+          const exceeds = receiveUnits > maxUnits
+          setShowMaxWarning(exceeds)
+          if (exceeds) {
+            // Correct receive value to the maximum allowed (rounded down to integer)
+            const maxReceiveDisplay = (maxUnits / SCALING_FACTOR).toString()
+
+            // Calculate corresponding send amount that yields this maximum receive
+            const maxInputUnits = convertReceiveToSend(maxUnits, swapRateUnits)
+            const maxInputDisplay = (maxInputUnits / SCALING_FACTOR).toString()
+
+            // Update receive field
+            setInputValue(maxReceiveDisplay)
+
+            // Propagate corrected send amount to parent
+            if (onChange) {
+              onChange(maxInputDisplay)
+            }
+
+            // Hide the warning after auto-correction
+            setShowMaxWarning(false)
             return
           }
         }
         
-        setError(null)
         setInputValue(newValue)
         if (onChange) {
           onChange(sendValue)
         }
         return
       } catch (e) {
-        setError("Invalid amount")
         return
       }
     }
 
-    // For send input, validate against max amount if provided
-    if (typeof maxUnits === "bigint" && maxUnits > 0n && newValue) {
-      const newUnits = stringToUnits(newValue, DEFAULT_DECIMALS)
-
-      if (newUnits > maxUnits) {
-        // Convert maxUnits back to display string for message
-        const maxDisplay = unitsToString(maxUnits, DEFAULT_DECIMALS)
-        setError(`Maximum amount is ${maxDisplay} USDT`)
-        // Auto-adjust to max value, rounded down to the nearest integer
-        const maxInt = Math.floor(Number(maxDisplay))
-        const adjustedValue = maxInt.toString()
-        setInputValue(adjustedValue)
-        if (onChange) {
-          onChange(adjustedValue)
+    // For send input, validate against maximum output liquidity
+    if (!isReceive && typeof maxUnits === "bigint" && maxUnits > 0n && newValue) {
+      try {
+        const sendUnits = stringToUnits(newValue, DEFAULT_DECIMALS)
+        // Ensure we have rate to convert output
+        if (!swapRateUnits) {
+          throw new Error('swapRateUnits missing')
         }
+
+        const outputUnits = convertSendToReceive(sendUnits, swapRateUnits)
+        const exceeds = outputUnits > maxUnits
+        setShowMaxWarning(exceeds)
+
+        if (exceeds) {
+          // Calculate the maximum input value that would result in maxUnits output
+          const maxInputUnits = convertReceiveToSend(maxUnits, swapRateUnits)
+          const maxInputDisplay = (maxInputUnits / SCALING_FACTOR).toString()
+          setInputValue(maxInputDisplay)
+          if (onChange) {
+            onChange(maxInputDisplay)
+          }
+          setShowMaxWarning(false)
+          return
+        }
+      } catch (e) {
+        // On conversion error, show generic
         return
-      } else {
-        setError(null)
+      }
+    }
+
+    // For receive input, directly compare receive units to max liquidity
+    if (isReceive && typeof maxUnits === "bigint" && maxUnits > 0n && newValue) {
+      const receiveUnits = stringToUnits(newValue, DEFAULT_DECIMALS)
+      const exceeds = receiveUnits > maxUnits
+      setShowMaxWarning(exceeds)
+      if (exceeds) {
+        // Correct receive value to the maximum allowed (rounded down to integer)
+        const maxReceiveDisplay = (maxUnits / SCALING_FACTOR).toString()
+
+        setInputValue(maxReceiveDisplay)
+
+        // Propagate same value (best we can without rate)
+        if (onChange) {
+          onChange(maxReceiveDisplay)
+        }
+
+        // Hide the warning after auto-correction
+        setShowMaxWarning(false)
+        return
       }
     }
     
@@ -118,8 +166,12 @@ export default function CurrencyInput({
         />
         <div className="flex items-center justify-between">
           <p className="text-normal text-muted-foreground mt-[0px] leading-none">{currency}</p>
-          {error && <p className="text-sm text-red-500">{error}</p>}
         </div>
+        {showMaxOutput && showMaxWarning && typeof maxUnits === "bigint" && maxUnits > 0n && (
+          <div className="text-xs text-red-500 mt-1">
+            Maximum output is {unitsToString(maxUnits, DEFAULT_DECIMALS)} USDT
+          </div>
+        )}
       </div>
       <div className="flex items-center justify-center pt-[40px] pb-[32px]">
         <Image

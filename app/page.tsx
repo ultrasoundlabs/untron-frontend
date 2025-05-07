@@ -42,7 +42,7 @@ export default function Home() {
   const [isDisconnecting, setIsDisconnecting] = useState(false)
   const [isPasteShaking, setIsPasteShaking] = useState(false)
   const [showErrorPlaceholder, setShowErrorPlaceholder] = useState(false)
-  const [maxOrderSize, setMaxOrderSize] = useState<bigint>(0n)
+  const [maxOrderOutput, setMaxOrderOutput] = useState<bigint>(0n)
   const [sendAmount, setSendAmount] = useState("")
   const [receiveAmount, setReceiveAmount] = useState("")
   const [isResolvingEns, setIsResolvingEns] = useState(false)
@@ -58,7 +58,7 @@ export default function Home() {
       try {
         const response = await fetch(`${API_BASE_URL}/info`)
         const data: ApiInfoResponse = await response.json()
-        setMaxOrderSize(BigInt(data.availableLiquidity.toString()))
+        setMaxOrderOutput(BigInt(data.availableLiquidity.toString()))
       } catch (error) {
         console.error('Failed to fetch API info:', error)
       }
@@ -211,7 +211,8 @@ export default function Home() {
                     currencyIcon="/USDTtron.svg"
                     currencyName="USDT Tron"
                     onChange={(val: string) => setSendAmount(val)}
-                    maxUnits={maxOrderSize}
+                    maxUnits={maxOrderOutput}
+                    swapRateUnits={SWAP_RATE_UNITS}
                   />
 
                   <CurrencyInput
@@ -223,7 +224,8 @@ export default function Home() {
                     onChange={(val: string) => setSendAmount(val)}
                     isReceive={true}
                     swapRateUnits={SWAP_RATE_UNITS}
-                    maxUnits={maxOrderSize}
+                    maxUnits={maxOrderOutput}
+                    showMaxOutput={true}
                   />
 
                   <div className="bg-white rounded-[22px] py-[14px] flex items-center">
