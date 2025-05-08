@@ -18,7 +18,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={geist.variable} suppressHydrationWarning>
       <body className="font-geist bg-background">
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <ThemeProvider attribute="class" defaultTheme="white" enableSystem>
           <WalletProvider>{children}</WalletProvider>
         </ThemeProvider>
       </body>
