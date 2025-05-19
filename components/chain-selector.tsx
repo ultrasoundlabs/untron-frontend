@@ -1,5 +1,6 @@
 import { OutputChain } from "@/config/chains"
 import { motion, AnimatePresence } from "motion/react"
+import Image from "next/image"
 
 interface ChainSelectorProps {
   open: boolean
@@ -18,44 +19,48 @@ export default function ChainSelector({ open, chains, selectedChainId, onSelect,
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
+          transition={{ duration: 0.15 }}
           onClick={onClose}
         >
           <motion.div
-            className="bg-white rounded-[22px] p-6 w-full max-w-[400px] mx-4"
+            className="bg-white rounded-[48px] px-[28px] pt-[28px] pb-0 w-full max-w-[400px] mx-4 h-[434px] flex flex-col overflow-hidden"
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-xl font-semibold mb-4 text-center">Select output chain</h3>
-            <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-2">
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="text-2xl font-normal font-geist">Select network</h3>
+              <div className="relative">
+                <button 
+                  className="relative w-12 h-12 flex items-center justify-center focus:outline-none group" 
+                  onClick={onClose}
+                >
+                  <div className="absolute inset-0 rounded-full bg-transparent group-hover:bg-[#F5F5F7] w-12 h-12"></div>
+                  <img src="/close.svg" alt="Close" width={48} height={48} className="relative z-10" />
+                </button>
+              </div>
+            </div>
+            <div className="space-y-0 overflow-y-auto pr-2 pb-[28px] flex-1">
               {chains.map((chain) => (
                 <button
                   key={chain.id}
-                  className={`w-full flex items-center justify-between px-4 py-3 rounded-[18px] border ${
-                    chain.id === selectedChainId ? 'bg-gray-100' : 'bg-white'
-                  } hover:bg-gray-50 transition-colors`}
+                  className="w-full flex items-center justify-between py-2 pl-2 pr-1 rounded-[16px] hover:bg-[#F5F5F7] transition-colors"
                   onClick={() => {
                     onSelect(chain)
                     onClose()
                   }}
                 >
-                  <div className="flex items-center space-x-3">
-                    <img src={chain.icon} alt={chain.name} className="w-6 h-6" />
-                    <span className="text-base font-medium text-black">{chain.name}</span>
+                  <div className="flex items-center space-x-4">
+                    <img src={chain.icon} alt={chain.name} className="w-12 h-12" />
+                    <span className="text-lg font-normal text-black font-geist">{chain.name}</span>
                   </div>
                   {chain.id === selectedChainId && (
-                    <span className="text-sm text-green-600 font-medium">Selected</span>
+                    <img src="/check.svg" alt="Selected" width={24} height={24} />
                   )}
                 </button>
               ))}
             </div>
-            <button
-              className="mt-4 w-full bg-black text-white py-2 rounded-[18px] font-medium hover:bg-gray-800 transition-colors"
-              onClick={onClose}
-            >
-              Close
-            </button>
           </motion.div>
         </motion.div>
       )}

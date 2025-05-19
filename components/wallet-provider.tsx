@@ -22,6 +22,23 @@ const wagmiConfig = getDefaultConfig({
   ssr: true,
 })
 
+// Custom theme
+const customLightTheme = lightTheme({
+  accentColor: "#000000", // Primary accent color for buttons
+  accentColorForeground: "#ffffff", // Text color on accent background
+  borderRadius: "large", // Border radius for buttons
+  fontStack: "system", 
+  overlayBlur: "small",
+});
+
+const customDarkTheme = darkTheme({
+  accentColor: "#ffffff", // Primary accent color for buttons
+  accentColorForeground: "#000000", // Text color on accent background
+  borderRadius: "large", // Border radius for buttons
+  fontStack: "system",
+  overlayBlur: "small",
+});
+
 export default function WalletProvider({ children }: WalletProviderProps) {
   const [queryClient] = useState(() => new QueryClient())
 
@@ -29,12 +46,12 @@ export default function WalletProvider({ children }: WalletProviderProps) {
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider
-          theme={lightTheme({
-            accentColor: "#000000",
-            accentColorForeground: "#ffffff",
-            fontStack: "system",
-            overlayBlur: "small",
-          })}
+          theme={{
+            lightMode: customLightTheme,
+            darkMode: customDarkTheme,
+          }}
+          modalSize="compact"
+          coolMode
         >{children}</RainbowKitProvider>
       </QueryClientProvider>
     </WagmiProvider>

@@ -16,6 +16,7 @@ import { getEnsAddress } from '@wagmi/core'
 import { normalize } from 'viem/ens'
 import { OUTPUT_CHAINS, OutputChain } from "@/config/chains"
 import ChainSelector from "@/components/chain-selector"
+import ChainButton from "@/components/chain-button"
 
 const isValidEVMAddress = (address: string): boolean => {
   // Ethereum address validation (0x followed by 40 hex characters)
@@ -264,20 +265,35 @@ export default function Home() {
                     overlayIcon="/chains/Tron.svg"
                   />
 
-                  <CurrencyInput
-                    label="You receive"
-                    value={receiveAmount}
-                    currency="$0"
-                    currencyIcon="/USDT.svg"
-                    currencyName={`USDT ${selectedChain.name}`}
-                    onChange={(val: string) => setSendAmount(val)}
-                    isReceive={true}
-                    swapRateUnits={SWAP_RATE_UNITS}
-                    maxUnits={maxOrderOutput}
-                    showMaxOutput={true}
-                    onIconClick={() => setIsChainSelectorOpen(true)}
-                    overlayIcon={selectedChain.icon}
-                  />
+                  <div className="bg-card rounded-[44px] pl-6 pr-[15px] w-full max-w-[560px] flex items-center h-[135px]">
+                    <div className="flex-1">
+                      <label className="text-[18px] font-normal text-foreground mb-0 leading-none block">
+                        You receive
+                      </label>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={receiveAmount}
+                        onChange={(e) => {
+                          // Reuse existing onChange logic from CurrencyInput
+                          const newValue = e.target.value.replace(/[^0-9.]/g, '')
+                          if (newValue.split('.').length > 2) return;
+                          setSendAmount(newValue)
+                        }}
+                        placeholder="0.0"
+                        className="text-[36px] font-semibold outline-none w-full text-foreground p-0 leading-none placeholder:text-muted-foreground"
+                      />
+                      <div className="flex items-center justify-between">
+                        <p className="text-normal text-muted-foreground mt-[0px] leading-none">$0</p>
+                      </div>
+                    </div>
+                    
+                    <ChainButton 
+                      networkIconSrc={selectedChain.icon}
+                      networkIconAlt={`${selectedChain.name} Network`}
+                      onClick={() => setIsChainSelectorOpen(true)}
+                    />
+                  </div>
 
                   <div className="bg-white rounded-[22px] py-[14px] flex items-center">
                     <div className="flex-1 flex items-center pl-[16px]">
