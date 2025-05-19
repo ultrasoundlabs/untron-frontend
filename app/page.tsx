@@ -14,6 +14,8 @@ import { API_BASE_URL, ApiInfoResponse, SWAP_RATE_UNITS } from "@/config/api"
 import { stringToUnits, unitsToString, DEFAULT_DECIMALS, convertSendToReceive } from "@/lib/units"
 import { getEnsAddress } from '@wagmi/core'
 import { normalize } from 'viem/ens'
+import { OUTPUT_CHAINS, OutputChain } from "@/config/chains"
+import ChainSelector from "@/components/chain-selector"
 
 const isValidEVMAddress = (address: string): boolean => {
   // Ethereum address validation (0x followed by 40 hex characters)
@@ -38,7 +40,6 @@ export default function Home() {
   const [addressBadge, setAddressBadge] = useState<string | null>(null)
   const [isSwapping, setIsSwapping] = useState(false)
   const [showArrowAndFaq, setShowArrowAndFaq] = useState(true)
-  const [footerPosition, setFooterPosition] = useState(false)
   const [isDisconnecting, setIsDisconnecting] = useState(false)
   const [isPasteShaking, setIsPasteShaking] = useState(false)
   const [showErrorPlaceholder, setShowErrorPlaceholder] = useState(false)
@@ -53,6 +54,8 @@ export default function Home() {
   const { address: connectedAddress } = useAccount()
   const { disconnect } = useDisconnect()
   const config = useConfig()
+  const [selectedChain, setSelectedChain] = useState<OutputChain>(OUTPUT_CHAINS[0])
+  const [isChainSelectorOpen, setIsChainSelectorOpen] = useState(false)
 
   // Fetch API info on component mount
   useEffect(() => {
@@ -185,7 +188,7 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           toCoin: "usdt",
-          toChain: 42161,
+          toChain: selectedChain.id,
           fromAmount: Number(fromUnits.toString()),
           rate: Number(SWAP_RATE_UNITS.toString()),
           beneficiary: addressBadge,
@@ -253,24 +256,27 @@ export default function Home() {
                     label="You send"
                     value={sendAmount}
                     currency="$0"
-                    currencyIcon="/USDTtron.svg"
+                    currencyIcon="/USDT.svg"
                     currencyName="USDT Tron"
                     onChange={(val: string) => setSendAmount(val)}
                     maxUnits={maxOrderOutput}
                     swapRateUnits={SWAP_RATE_UNITS}
+                    overlayIcon="/chains/Tron.svg"
                   />
 
                   <CurrencyInput
                     label="You receive"
                     value={receiveAmount}
                     currency="$0"
-                    currencyIcon="/USDTarb.svg"
-                    currencyName="USDT ARB"
+                    currencyIcon="/USDT.svg"
+                    currencyName={`USDT ${selectedChain.name}`}
                     onChange={(val: string) => setSendAmount(val)}
                     isReceive={true}
                     swapRateUnits={SWAP_RATE_UNITS}
                     maxUnits={maxOrderOutput}
                     showMaxOutput={true}
+                    onIconClick={() => setIsChainSelectorOpen(true)}
+                    overlayIcon={selectedChain.icon}
                   />
 
                   <div className="bg-white rounded-[22px] py-[14px] flex items-center">
@@ -299,11 +305,14 @@ export default function Home() {
                                 value={inputValue}
                                 onChange={(e: ChangeEvent<HTMLInputElement>) => setInputValue(e.target.value)}
                                 onKeyDown={handleKeyDown}
-                                placeholder={isResolvingEns && resolvingEnsName ? `Resolving ${resolvingEnsName}...` : (showErrorPlaceholder ? "Not an Ethereum address!" : "ENS or Address")}
+                                // placeholder={isResolvingEns && resolvingEnsName ? `Resolving ${resolvingEnsName}...` : (showErrorPlaceholder ? "Not an Ethereum address!" : "ENS or Address")}
                                 disabled={isResolvingEns}
+                                autoCorrect="off"
+                                spellCheck="false"
+                                autoCapitalize="off"
                               />
                               <AnimatePresence>
-                                {inputValue === "" && !isResolvingEns && (
+                                {inputValue === "" && (
                                   <motion.span
                                     key={showErrorPlaceholder ? "error" : "default"}
                                     initial={{ opacity: 0 }}
@@ -312,7 +321,7 @@ export default function Home() {
                                     transition={{ duration: 0.3 }}
                                     className="absolute left-0 top-0 h-full flex items-center text-[#B5B5B5] text-lg font-medium pointer-events-none select-none"
                                   >
-                                    {showErrorPlaceholder ? "Not an Ethereum address!" : "ENS or Address"}
+                                    {isResolvingEns && resolvingEnsName ? `Resolving ${resolvingEnsName}...` : (showErrorPlaceholder ? "Not an Ethereum address!" : "ENS or Address")}
                                   </motion.span>
                                 )}
                               </AnimatePresence>
@@ -419,6 +428,14 @@ export default function Home() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <ChainSelector
+        open={isChainSelectorOpen}
+        chains={OUTPUT_CHAINS}
+        selectedChainId={selectedChain.id}
+        onSelect={(c) => setSelectedChain(c)}
+        onClose={() => setIsChainSelectorOpen(false)}
+      />
     </div>
   )
 }
