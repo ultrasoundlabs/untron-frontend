@@ -1,6 +1,7 @@
 import { OutputChain } from "@/config/chains"
 import { motion, AnimatePresence } from "motion/react"
 import Image from "next/image"
+import { unitsToString, DEFAULT_DECIMALS } from "@/lib/units"
 
 interface ChainSelectorProps {
   open: boolean
@@ -53,7 +54,14 @@ export default function ChainSelector({ open, chains, selectedChainId, onSelect,
                 >
                   <div className="flex items-center space-x-4">
                     <img src={chain.icon} alt={chain.name} className="w-12 h-12" />
-                    <span className="text-lg font-normal text-black font-geist">{chain.name}</span>
+                    <div className="flex flex-col items-start">
+                      <span className="text-lg font-normal text-black font-geist">{chain.name}</span>
+                      {chain.fixedFeeUsd > 0n && (
+                        <span className="text-xs text-gray-500 font-geist">
+                          {unitsToString(chain.fixedFeeUsd, DEFAULT_DECIMALS)} USDT fee
+                        </span>
+                      )}
+                    </div>
                   </div>
                   {chain.id === selectedChainId && (
                     <img src="/check.svg" alt="Selected" width={24} height={24} />

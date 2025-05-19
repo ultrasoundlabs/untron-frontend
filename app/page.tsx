@@ -77,7 +77,16 @@ export default function Home() {
     if (sendAmount) {
       try {
         const sendUnits = stringToUnits(sendAmount, DEFAULT_DECIMALS)
-        const receiveUnits = convertSendToReceive(sendUnits, SWAP_RATE_UNITS)
+        let receiveUnits = convertSendToReceive(sendUnits, SWAP_RATE_UNITS)
+        
+        // Subtract fixed fee
+        const fee = selectedChain.fixedFeeUsd
+        if (receiveUnits > fee) {
+          receiveUnits -= fee
+        } else {
+          receiveUnits = 0n
+        }
+
         setReceiveAmount(unitsToString(receiveUnits, DEFAULT_DECIMALS))
       } catch (e) {
         setReceiveAmount("")
@@ -85,7 +94,7 @@ export default function Home() {
     } else {
       setReceiveAmount("")
     }
-  }, [sendAmount])
+  }, [sendAmount, selectedChain])
 
   // Set connected wallet address when it changes
   useEffect(() => {

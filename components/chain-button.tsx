@@ -72,7 +72,7 @@ export default function ChainButton({
             }}
           >
             <div
-              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-transparent z-10"
+              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white z-10"
               style={{
                 width: 30,
                 height: 30,
