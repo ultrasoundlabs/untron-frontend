@@ -17,7 +17,7 @@ const wagmiConfig = getDefaultConfig({
     process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "YOUR_PROJECT_ID",
   chains: [mainnet],
   transports: {
-    [mainnet.id]: http(),
+    [mainnet.id]: http("https://ethereum-rpc.publicnode.com"), // whatever RPC RainbowKit provides by default is fascist
   },
   ssr: true,
 })
