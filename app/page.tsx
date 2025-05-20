@@ -46,10 +46,14 @@ const truncateAddress = (address: string) => {
 }
 
 const formatCurrency = (value: string) => {
-  if (!value) return "$0.00"
+  if (!value) return "$0"
   const num = parseFloat(value)
-  if (isNaN(num)) return "$0.00"
-  return `$${num.toFixed(2)}`
+  if (isNaN(num)) return "$0"
+  const formatted = num.toFixed(2)
+  if (formatted.endsWith(".00")) {
+    return `$${num.toFixed(0)}`
+  }
+  return `$${formatted}`
 }
 
 const geist = Geist({
