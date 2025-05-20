@@ -1,5 +1,6 @@
 import { motion } from "motion/react"
 import { unitsToString } from "@/lib/units"
+import { OUTPUT_CHAINS } from "@/config/chains"
 
 interface UntronDetailsProps {
   isOpen: boolean
@@ -15,11 +16,13 @@ interface UntronDetailsProps {
 
 export function UntronDetails({ isOpen, order }: UntronDetailsProps) {
   const { sentTotal, receivedTotal, sentTxHash, toCoin, toChain, receiver } = order
-  const chainMap: Record<number, { name: string; explorer: string }> = { // TODO: needs to be better
-    42161: { name: "Arbitrum", explorer: "https://arbiscan.io/tx/" },
-    1: { name: "Ethereum", explorer: "https://etherscan.io/tx/" },
-  }
-  const toChainInfo = chainMap[toChain] ?? { name: `Chain ${toChain}`, explorer: "" }
+  const chainMap: Record<number, { name: string; icon: string }> = OUTPUT_CHAINS.reduce((acc, c) => {
+    acc[c.id] = { name: c.name, icon: c.icon }
+    return acc
+  }, {} as Record<number, { name: string; icon: string }>)
+
+  const toChainInfo = chainMap[toChain] ?? { name: `Chain ${toChain}`, icon: "/chains/Arbitrum.svg" }
+  
   return (
     <motion.div 
       className="rounded-md mb-4"
@@ -45,7 +48,7 @@ export function UntronDetails({ isOpen, order }: UntronDetailsProps) {
           <div className="flex justify-between">
             <span className="font-regular">Funds released</span>
             <a
-              href={`${toChainInfo.explorer}${sentTxHash}`}
+              href={`https://optimistic.etherscan.io/tx/${sentTxHash}`}
               target="_blank"
               rel="noopener noreferrer"
               className="font-medium text-foreground underline"

@@ -25,6 +25,20 @@ const isValidEVMAddress = (address: string): boolean => {
   return ethRegex.test(address)
 }
 
+const isValidDomainName = (name: string): boolean => {
+  // General domain name validation (e.g., name.eth, sub.name.com)
+  // Allows for subdomains and various TLDs (at least 2 chars)
+  const domainRegex = /^([a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/
+  return domainRegex.test(name)
+}
+
+const isPotentialEnsName = (name: string): boolean => {
+  if (!isValidDomainName(name)) {
+    return false
+  }
+  return name.toLowerCase().endsWith('.eth') || name.toLowerCase().endsWith('.cb.id')
+}
+
 const truncateAddress = (address: string) => {
   if (!address) return ""
   if (address.length <= 10) return address
@@ -103,6 +117,17 @@ export default function Home() {
     }
   }, [connectedAddress, addressBadge, isDisconnecting])
 
+  // Automatically resolve ENS when inputValue changes and looks like an ENS name
+  useEffect(() => {
+    const trimmedValue = inputValue.trim()
+    // Only auto-resolve for .eth names to avoid premature resolution for other TLDs
+    if (isPotentialEnsName(trimmedValue) && !isValidEVMAddress(trimmedValue) && !isResolvingEns) {
+      setIsResolvingEns(true)
+      setResolvingEnsName(trimmedValue)
+      resolveEnsAddress(trimmedValue)
+    }
+  }, [inputValue]) // Dependencies: inputValue
+
   const resolveEnsAddress = async (ensName: string) => {
     try {
       setInputValue("")
@@ -137,13 +162,22 @@ export default function Home() {
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && inputValue.trim()) {
-      if (isValidEVMAddress(inputValue.trim())) {
-        setAddressBadge(inputValue.trim())
+      const trimmedValue = inputValue.trim()
+      if (isValidEVMAddress(trimmedValue)) {
+        setAddressBadge(trimmedValue)
         setInputValue("")
-      } else if (inputValue.trim().includes('.')) {
-        setIsResolvingEns(true)
-        setResolvingEnsName(inputValue.trim())
-        resolveEnsAddress(inputValue.trim())
+      } else if (isValidDomainName(trimmedValue)) {
+        // ENS resolution is now handled by useEffect, but we can still trigger it on Enter if needed
+        // or if the user confirms an ENS name they typed.
+        // For now, we'll let the useEffect handle it. If the user presses Enter
+        // on an ENS-like name and it hasn't resolved yet, it will be picked up by the useEffect.
+        // If it's already resolving, this Enter press won't do much harm.
+        // Alternatively, if we want Enter to specifically *confirm* an ENS name even if it's auto-resolving:
+        if (!isResolvingEns) { // Only trigger if not already resolving
+            setIsResolvingEns(true)
+            setResolvingEnsName(trimmedValue)
+            resolveEnsAddress(trimmedValue)
+        }
       } else {
         setIsPasteShaking(true)
         setShowErrorPlaceholder(true)
@@ -162,7 +196,19 @@ export default function Home() {
           setAddressBadge(text)
           setInputValue("")
         } else {
-          resolveEnsAddress(text)
+          // Trigger ENS resolution on paste if it looks like an ENS name
+          if (isValidDomainName(text) && !isResolvingEns) {
+            setIsResolvingEns(true)
+            setResolvingEnsName(text)
+            resolveEnsAddress(text)
+          } else if (!isValidDomainName(text)) { // If it's not an ENS and not a valid address
+            setIsPasteShaking(true)
+            setShowErrorPlaceholder(true)
+            setTimeout(() => {
+              setIsPasteShaking(false)
+              setShowErrorPlaceholder(false)
+            }, 3000)
+          }
         }
       }
     }).catch(err => {
