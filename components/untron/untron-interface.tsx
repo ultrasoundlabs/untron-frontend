@@ -204,7 +204,7 @@ export default function UntronInterface({ orderId }: { orderId: string }) {
               transition={{ duration: 0.3 }}
             >
               <h1 className="text-3xl font-medium text-foreground flex items-center">
-                Untroning 🤫
+                Untronning 🤫
                 {isMobile && (
                   <span className="ml-2 text-3xl font-medium">- {formatTime()}</span>
                 )}

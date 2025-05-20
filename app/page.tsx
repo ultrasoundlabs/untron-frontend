@@ -14,6 +14,9 @@ import { API_BASE_URL, ApiInfoResponse, SWAP_RATE_UNITS } from "@/config/api"
 import { stringToUnits, unitsToString, DEFAULT_DECIMALS, convertSendToReceive } from "@/lib/units"
 import { getEnsAddress } from '@wagmi/core'
 import { normalize } from 'viem/ens'
+import { OUTPUT_CHAINS, OutputChain } from "@/config/chains"
+import ChainSelector from "@/components/chain-selector"
+import ChainButton from "@/components/chain-button"
 
 const isValidEVMAddress = (address: string): boolean => {
   // Ethereum address validation (0x followed by 40 hex characters)
@@ -22,10 +25,35 @@ const isValidEVMAddress = (address: string): boolean => {
   return ethRegex.test(address)
 }
 
+const isValidDomainName = (name: string): boolean => {
+  // General domain name validation (e.g., name.eth, sub.name.com)
+  // Allows for subdomains and various TLDs (at least 2 chars)
+  const domainRegex = /^([a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/
+  return domainRegex.test(name)
+}
+
+const isPotentialEnsName = (name: string): boolean => {
+  if (!isValidDomainName(name)) {
+    return false
+  }
+  return name.toLowerCase().endsWith('.eth') || name.toLowerCase().endsWith('.cb.id')
+}
+
 const truncateAddress = (address: string) => {
   if (!address) return ""
   if (address.length <= 10) return address
   return `${address.slice(0, 6)}...${address.slice(-4)}`
+}
+
+const formatCurrency = (value: string) => {
+  if (!value) return "$0"
+  const num = parseFloat(value)
+  if (isNaN(num)) return "$0"
+  const formatted = num.toFixed(2)
+  if (formatted.endsWith(".00")) {
+    return `$${num.toFixed(0)}`
+  }
+  return `$${formatted}`
 }
 
 const geist = Geist({
@@ -38,7 +66,6 @@ export default function Home() {
   const [addressBadge, setAddressBadge] = useState<string | null>(null)
   const [isSwapping, setIsSwapping] = useState(false)
   const [showArrowAndFaq, setShowArrowAndFaq] = useState(true)
-  const [footerPosition, setFooterPosition] = useState(false)
   const [isDisconnecting, setIsDisconnecting] = useState(false)
   const [isPasteShaking, setIsPasteShaking] = useState(false)
   const [showErrorPlaceholder, setShowErrorPlaceholder] = useState(false)
@@ -53,6 +80,8 @@ export default function Home() {
   const { address: connectedAddress } = useAccount()
   const { disconnect } = useDisconnect()
   const config = useConfig()
+  const [selectedChain, setSelectedChain] = useState<OutputChain>(OUTPUT_CHAINS[0])
+  const [isChainSelectorOpen, setIsChainSelectorOpen] = useState(false)
 
   // Fetch API info on component mount
   useEffect(() => {
@@ -73,7 +102,16 @@ export default function Home() {
     if (sendAmount) {
       try {
         const sendUnits = stringToUnits(sendAmount, DEFAULT_DECIMALS)
-        const receiveUnits = convertSendToReceive(sendUnits, SWAP_RATE_UNITS)
+        let receiveUnits = convertSendToReceive(sendUnits, SWAP_RATE_UNITS)
+        
+        // Subtract fixed fee
+        const fee = selectedChain.fixedFeeUsd
+        if (receiveUnits > fee) {
+          receiveUnits -= fee
+        } else {
+          receiveUnits = 0n
+        }
+
         setReceiveAmount(unitsToString(receiveUnits, DEFAULT_DECIMALS))
       } catch (e) {
         setReceiveAmount("")
@@ -81,7 +119,7 @@ export default function Home() {
     } else {
       setReceiveAmount("")
     }
-  }, [sendAmount])
+  }, [sendAmount, selectedChain])
 
   // Set connected wallet address when it changes
   useEffect(() => {
@@ -89,6 +127,17 @@ export default function Home() {
       setAddressBadge(connectedAddress)
     }
   }, [connectedAddress, addressBadge, isDisconnecting])
+
+  // Automatically resolve ENS when inputValue changes and looks like an ENS name
+  useEffect(() => {
+    const trimmedValue = inputValue.trim()
+    // Only auto-resolve for .eth names to avoid premature resolution for other TLDs
+    if (isPotentialEnsName(trimmedValue) && !isValidEVMAddress(trimmedValue) && !isResolvingEns) {
+      setIsResolvingEns(true)
+      setResolvingEnsName(trimmedValue)
+      resolveEnsAddress(trimmedValue)
+    }
+  }, [inputValue]) // Dependencies: inputValue
 
   const resolveEnsAddress = async (ensName: string) => {
     try {
@@ -124,13 +173,22 @@ export default function Home() {
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && inputValue.trim()) {
-      if (isValidEVMAddress(inputValue.trim())) {
-        setAddressBadge(inputValue.trim())
+      const trimmedValue = inputValue.trim()
+      if (isValidEVMAddress(trimmedValue)) {
+        setAddressBadge(trimmedValue)
         setInputValue("")
-      } else if (inputValue.trim().includes('.')) {
-        setIsResolvingEns(true)
-        setResolvingEnsName(inputValue.trim())
-        resolveEnsAddress(inputValue.trim())
+      } else if (isValidDomainName(trimmedValue)) {
+        // ENS resolution is now handled by useEffect, but we can still trigger it on Enter if needed
+        // or if the user confirms an ENS name they typed.
+        // For now, we'll let the useEffect handle it. If the user presses Enter
+        // on an ENS-like name and it hasn't resolved yet, it will be picked up by the useEffect.
+        // If it's already resolving, this Enter press won't do much harm.
+        // Alternatively, if we want Enter to specifically *confirm* an ENS name even if it's auto-resolving:
+        if (!isResolvingEns) { // Only trigger if not already resolving
+            setIsResolvingEns(true)
+            setResolvingEnsName(trimmedValue)
+            resolveEnsAddress(trimmedValue)
+        }
       } else {
         setIsPasteShaking(true)
         setShowErrorPlaceholder(true)
@@ -149,7 +207,19 @@ export default function Home() {
           setAddressBadge(text)
           setInputValue("")
         } else {
-          resolveEnsAddress(text)
+          // Trigger ENS resolution on paste if it looks like an ENS name
+          if (isValidDomainName(text) && !isResolvingEns) {
+            setIsResolvingEns(true)
+            setResolvingEnsName(text)
+            resolveEnsAddress(text)
+          } else if (!isValidDomainName(text)) { // If it's not an ENS and not a valid address
+            setIsPasteShaking(true)
+            setShowErrorPlaceholder(true)
+            setTimeout(() => {
+              setIsPasteShaking(false)
+              setShowErrorPlaceholder(false)
+            }, 3000)
+          }
         }
       }
     }).catch(err => {
@@ -185,7 +255,7 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           toCoin: "usdt",
-          toChain: 42161,
+          toChain: selectedChain.id,
           fromAmount: Number(fromUnits.toString()),
           rate: Number(SWAP_RATE_UNITS.toString()),
           beneficiary: addressBadge,
@@ -252,26 +322,44 @@ export default function Home() {
                   <CurrencyInput
                     label="You send"
                     value={sendAmount}
-                    currency="$0"
-                    currencyIcon="/USDTtron.svg"
+                    currency={formatCurrency(sendAmount)}
+                    currencyIcon="/USDT.svg"
                     currencyName="USDT Tron"
                     onChange={(val: string) => setSendAmount(val)}
                     maxUnits={maxOrderOutput}
                     swapRateUnits={SWAP_RATE_UNITS}
+                    overlayIcon="/chains/Tron.svg"
                   />
 
-                  <CurrencyInput
-                    label="You receive"
-                    value={receiveAmount}
-                    currency="$0"
-                    currencyIcon="/USDTarb.svg"
-                    currencyName="USDT ARB"
-                    onChange={(val: string) => setSendAmount(val)}
-                    isReceive={true}
-                    swapRateUnits={SWAP_RATE_UNITS}
-                    maxUnits={maxOrderOutput}
-                    showMaxOutput={true}
-                  />
+                  <div className="bg-card rounded-[44px] pl-6 pr-[15px] w-full max-w-[560px] flex items-center h-[135px]">
+                    <div className="flex-1">
+                      <label className="text-[18px] font-normal text-foreground mb-0 leading-none block">
+                        You receive
+                      </label>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={receiveAmount}
+                        onChange={(e) => {
+                          // Reuse existing onChange logic from CurrencyInput
+                          const newValue = e.target.value.replace(/[^0-9.]/g, '')
+                          if (newValue.split('.').length > 2) return;
+                          setReceiveAmount(newValue)
+                        }}
+                        placeholder="0.0"
+                        className="text-[36px] font-semibold outline-none w-full text-foreground p-0 leading-none placeholder:text-muted-foreground"
+                      />
+                      <div className="flex items-center justify-between">
+                        <p className="text-normal text-muted-foreground mt-[0px] leading-none">{formatCurrency(receiveAmount)}</p>
+                      </div>
+                    </div>
+                    
+                    <ChainButton 
+                      networkIconSrc={selectedChain.icon}
+                      networkIconAlt={`${selectedChain.name} Network`}
+                      onClick={() => setIsChainSelectorOpen(true)}
+                    />
+                  </div>
 
                   <div className="bg-white rounded-[22px] py-[14px] flex items-center">
                     <div className="flex-1 flex items-center pl-[16px]">
@@ -299,11 +387,14 @@ export default function Home() {
                                 value={inputValue}
                                 onChange={(e: ChangeEvent<HTMLInputElement>) => setInputValue(e.target.value)}
                                 onKeyDown={handleKeyDown}
-                                placeholder={isResolvingEns && resolvingEnsName ? `Resolving ${resolvingEnsName}...` : (showErrorPlaceholder ? "Not an Ethereum address!" : "ENS or Address")}
+                                // placeholder={isResolvingEns && resolvingEnsName ? `Resolving ${resolvingEnsName}...` : (showErrorPlaceholder ? "Not an Ethereum address!" : "ENS or Address")}
                                 disabled={isResolvingEns}
+                                autoCorrect="off"
+                                spellCheck="false"
+                                autoCapitalize="off"
                               />
                               <AnimatePresence>
-                                {inputValue === "" && !isResolvingEns && (
+                                {inputValue === "" && (
                                   <motion.span
                                     key={showErrorPlaceholder ? "error" : "default"}
                                     initial={{ opacity: 0 }}
@@ -312,7 +403,7 @@ export default function Home() {
                                     transition={{ duration: 0.3 }}
                                     className="absolute left-0 top-0 h-full flex items-center text-[#B5B5B5] text-lg font-medium pointer-events-none select-none"
                                   >
-                                    {showErrorPlaceholder ? "Not an Ethereum address!" : "ENS or Address"}
+                                    {isResolvingEns && resolvingEnsName ? `Resolving ${resolvingEnsName}...` : (showErrorPlaceholder ? "Not an Ethereum address!" : "ENS or Address")}
                                   </motion.span>
                                 )}
                               </AnimatePresence>
@@ -419,6 +510,14 @@ export default function Home() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <ChainSelector
+        open={isChainSelectorOpen}
+        chains={OUTPUT_CHAINS}
+        selectedChainId={selectedChain.id}
+        onSelect={(c) => setSelectedChain(c)}
+        onClose={() => setIsChainSelectorOpen(false)}
+      />
     </div>
   )
 }

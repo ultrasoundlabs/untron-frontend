@@ -1,4 +1,5 @@
 import Image from "next/image"
+import { ChevronDown } from "lucide-react"
 import { ChangeEvent, useState, useEffect } from "react"
 import { stringToUnits, DEFAULT_DECIMALS, unitsToString, convertReceiveToSend, convertSendToReceive, SCALING_FACTOR } from "@/lib/units"
 
@@ -13,6 +14,8 @@ interface CurrencyInputProps {
   isReceive?: boolean
   swapRateUnits?: bigint
   showMaxOutput?: boolean
+  onIconClick?: () => void
+  overlayIcon?: string
 }
 
 export default function CurrencyInput({ 
@@ -25,7 +28,9 @@ export default function CurrencyInput({
   maxUnits,
   isReceive = false,
   swapRateUnits,
-  showMaxOutput = false
+  showMaxOutput = false,
+  onIconClick,
+  overlayIcon,
 }: CurrencyInputProps) {
   const [inputValue, setInputValue] = useState(initialValue)
   const [showMaxWarning, setShowMaxWarning] = useState(false)
@@ -173,15 +178,62 @@ export default function CurrencyInput({
           </div>
         )}
       </div>
-      <div className="flex items-center justify-center pt-[40px] pb-[32px]">
-        <Image
-          src={currencyIcon || "/placeholder.svg"}
-          alt={currencyName || "Currency"}
-          width={63}
-          height={63}
-          className="w-auto h-auto"
-        />
-      </div>
+      {/* Right-hand selectable chain / icon */}
+      {onIconClick ? (
+        <div
+          className="flex items-center justify-center py-[5px] pl-[24px] pr-[5px] cursor-pointer"
+          onClick={onIconClick}
+        >
+          <div className="flex items-center bg-[#F2F2F4] rounded-[25px] px-3 py-2 space-x-2">
+            {/* Chevron */}
+            <ChevronDown className="w-6 h-6 text-foreground" />
+            {/* Icon */}
+            <div className="relative w-[48px] h-[48px]">
+              <Image
+                src={currencyIcon || "/placeholder.svg"}
+                alt={currencyName || "Currency"}
+                fill
+                className="object-contain"
+              />
+              {overlayIcon && (
+                <div className="absolute bottom-[-8px] right-[-8px] w-[30px] h-[30px]">
+                  {/* White circle background */}
+                  <div className="absolute top-0 left-0 w-full h-full bg-white rounded-full" />
+                  {/* Overlay Icon */}
+                  <img
+                    src={overlayIcon}
+                    alt="Chain"
+                    className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[26px] h-[26px] object-contain"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center justify-center py-[5px] pl-[24px] pr-[5px]">
+          <div className="relative w-[52px] h-[52px]">
+            <Image
+              src={currencyIcon || "/placeholder.svg"}
+              alt={currencyName || "Currency"}
+              fill
+              className="object-contain"
+            />
+            {overlayIcon && (
+              <div className="absolute bottom-[-8px] right-[-8px] w-[30px] h-[30px]">
+                {/* White circle background */}
+                <div className="absolute top-0 left-0 w-full h-full bg-white rounded-full" />
+                {/* Overlay Icon */}
+                <img
+                  src={overlayIcon}
+                  alt="Chain"
+                  className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[26px] h-[26px] object-contain"
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
