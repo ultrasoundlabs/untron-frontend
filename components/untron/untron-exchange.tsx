@@ -11,10 +11,10 @@ interface UntronExchangeProps {
 
 export function UntronExchange({ sentTotal, receivedTotal, toChain, toCoin }: UntronExchangeProps) {
   // map chain id to display name and icon path
-  const chainMap: Record<number, { name: string; icon: string }> = OUTPUT_CHAINS.reduce((acc, c) => {
-    acc[c.id] = { name: c.name, icon: c.icon }
+  const chainMap: Record<number, { name: string; icon: string; fixedFeeUsd: bigint }> = OUTPUT_CHAINS.reduce((acc, c) => {
+    acc[c.id] = { name: c.name, icon: c.icon, fixedFeeUsd: c.fixedFeeUsd }
     return acc
-  }, {} as Record<number, { name: string; icon: string }>)
+  }, {} as Record<number, { name: string; icon: string; fixedFeeUsd: bigint }>)
 
   const toChainInfo = chainMap[toChain] ?? { name: `Chain ${toChain}`, icon: "/chains/Arbitrum.svg" }
 
@@ -47,7 +47,7 @@ export function UntronExchange({ sentTotal, receivedTotal, toChain, toCoin }: Un
         </div>
         <div className="flex flex-col -space-y-1 overflow-hidden min-w-0">
           <div className="text-[18px] text-muted-foreground font-regular truncate">Receive {toChainInfo.name}</div>
-          <div className="text-[36px] font-semibold text-foreground truncate">{formatAmount(receivedTotal)} {toCoin.toUpperCase()}</div>
+          <div className="text-[36px] font-semibold text-foreground truncate">{formatAmount(receivedTotal - toChainInfo.fixedFeeUsd)} {toCoin.toUpperCase()}</div>
         </div>
       </div>
     </div>
