@@ -76,6 +76,7 @@ export default function Home() {
   const [resolvingEnsName, setResolvingEnsName] = useState("")
   const [isContentHidden, setIsContentHidden] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [showWalletLink, setShowWalletLink] = useState(true)
   const router = useRouter()
   const { address: connectedAddress } = useAccount()
   const { disconnect } = useDisconnect()
@@ -138,6 +139,15 @@ export default function Home() {
       resolveEnsAddress(trimmedValue)
     }
   }, [inputValue]) // Dependencies: inputValue
+
+  // Hide Tron wallet link if input has value or badge is set
+  useEffect(() => {
+    if (inputValue.trim() !== "" || addressBadge || isResolvingEns) {
+      setShowWalletLink(false)
+    } else {
+      setShowWalletLink(true)
+    }
+  }, [inputValue, addressBadge, isResolvingEns])
 
   const resolveEnsAddress = async (ensName: string) => {
     try {
@@ -459,7 +469,22 @@ export default function Home() {
                     <p className="text-center text-red-500 mt-2 text-base">{errorMessage}</p>
                   )}
 
-                  <p className="text-center text-regular text-[#8d8d8d] text-[18px]">I only have a Tron wallet</p>
+                  <AnimatePresence>
+                    {showWalletLink && (
+                      <motion.a
+                        href="https://keys.coinbase.com"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 10 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <p className="text-center text-regular text-[#8d8d8d] text-[18px]">Only got a Tron wallet? 👈</p>
+                      </motion.a>
+                    )}
+                  </AnimatePresence>
                 </div>
               </motion.div>
             )}
@@ -468,6 +493,7 @@ export default function Home() {
           <AnimatePresence>
             {showArrowAndFaq && (
               <motion.div
+                layout
                 initial={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.3 }}
