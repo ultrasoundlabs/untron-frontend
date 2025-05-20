@@ -45,6 +45,13 @@ const truncateAddress = (address: string) => {
   return `${address.slice(0, 6)}...${address.slice(-4)}`
 }
 
+const formatCurrency = (value: string) => {
+  if (!value) return "$0.00"
+  const num = parseFloat(value)
+  if (isNaN(num)) return "$0.00"
+  return `$${num.toFixed(2)}`
+}
+
 const geist = Geist({
   subsets: ["latin"],
   weight: ["300", "400", "500", "600"],
@@ -311,7 +318,7 @@ export default function Home() {
                   <CurrencyInput
                     label="You send"
                     value={sendAmount}
-                    currency="$0"
+                    currency={formatCurrency(sendAmount)}
                     currencyIcon="/USDT.svg"
                     currencyName="USDT Tron"
                     onChange={(val: string) => setSendAmount(val)}
@@ -333,13 +340,13 @@ export default function Home() {
                           // Reuse existing onChange logic from CurrencyInput
                           const newValue = e.target.value.replace(/[^0-9.]/g, '')
                           if (newValue.split('.').length > 2) return;
-                          setSendAmount(newValue)
+                          setReceiveAmount(newValue)
                         }}
                         placeholder="0.0"
                         className="text-[36px] font-semibold outline-none w-full text-foreground p-0 leading-none placeholder:text-muted-foreground"
                       />
                       <div className="flex items-center justify-between">
-                        <p className="text-normal text-muted-foreground mt-[0px] leading-none">$0</p>
+                        <p className="text-normal text-muted-foreground mt-[0px] leading-none">{formatCurrency(receiveAmount)}</p>
                       </div>
                     </div>
                     
