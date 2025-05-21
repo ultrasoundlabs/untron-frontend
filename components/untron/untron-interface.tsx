@@ -113,7 +113,7 @@ export default function UntronInterface({ orderId }: { orderId: string }) {
           className="mt-auto"
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.3 }}
+          transition={{ duration: 0.3, delay: 1.2 }}
         >
           <Footer />
         </motion.div>
@@ -182,7 +182,7 @@ export default function UntronInterface({ orderId }: { orderId: string }) {
           className="mt-auto"
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.3 }}
+          transition={{ duration: 0.3, delay: 1.2 }}
         >
           <Footer />
         </motion.div>
@@ -193,7 +193,7 @@ export default function UntronInterface({ orderId }: { orderId: string }) {
   return (
     <div className="min-h-screen bg-background font-geist flex flex-col">
       <Header />
-
+      
       <main className="w-full max-w-[1200px] mx-auto px-4 py-12 flex flex-col lg:flex-row flex-grow">
         <div className="w-full lg:w-3/5 pr-0 lg:pr-8 flex-shrink-0">
           <AnimatePresence>
@@ -258,17 +258,19 @@ export default function UntronInterface({ orderId }: { orderId: string }) {
                 </motion.button>
               </div>
 
-              <UntronDetails
-                isOpen={detailsOpen}
-                order={{
-                  sentTotal: remainingToSend,
-                  receivedTotal: expectedReceiveForRemaining,
-                  sentTxHash,
-                  toCoin,
-                  toChain,
-                  receiver,
-                }}
-              />
+              <div className="min-h-[110px]">
+                <UntronDetails
+                  isOpen={detailsOpen}
+                  order={{
+                    sentTotal: remainingToSend,
+                    receivedTotal: expectedReceiveForRemaining,
+                    sentTxHash,
+                    toCoin,
+                    toChain,
+                    receiver,
+                  }}
+                />
+              </div>
             </motion.div>
           </AnimatePresence>
         </div>
@@ -295,7 +297,7 @@ export default function UntronInterface({ orderId }: { orderId: string }) {
         className="mt-auto"
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.3, delay: 0.5 }}
+        transition={{ duration: 0.3, delay: 1.2 }}
       >
         <Footer />
       </motion.div>

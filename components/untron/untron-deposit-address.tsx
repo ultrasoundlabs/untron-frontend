@@ -21,7 +21,7 @@ export function UntronDepositAddress({ copied, handleCopy, isMobile, onShowQr, d
           <div className="flex-shrink-0 ml-auto sm:ml-0 flex gap-2">
             <motion.button 
               onClick={handleCopy} 
-              className="bg-primary text-primary-foreground text-[16px] font-medium px-3 py-1 rounded-full"
+              className="bg-black text-white text-[16px] font-medium px-3 py-1 rounded-full"
               whileHover={{ 
                 width: "auto",
                 scale: 1.05,
@@ -32,8 +32,8 @@ export function UntronDepositAddress({ copied, handleCopy, isMobile, onShowQr, d
                 originX: 1
               }}
               animate={{ 
-                backgroundColor: copied ? "var(--muted-foreground)" : "var(--primary)",
-                color: copied ? "var(--muted)" : "var(--primary-foreground)",
+                backgroundColor: "black",
+                color: "white",
                 width: "auto",
                 transition: { 
                   duration: 0.15,

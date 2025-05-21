@@ -11,7 +11,7 @@ import Footer from "@/components/footer"
 import { useRouter } from "next/navigation"
 import { useAccount, useDisconnect, useConfig } from "wagmi"
 import { API_BASE_URL, ApiInfoResponse, SWAP_RATE_UNITS } from "@/config/api"
-import { stringToUnits, unitsToString, DEFAULT_DECIMALS, convertSendToReceive } from "@/lib/units"
+import { stringToUnits, unitsToString, DEFAULT_DECIMALS, convertSendToReceive, convertReceiveToSend } from "@/lib/units"
 import { getEnsAddress } from '@wagmi/core'
 import { normalize } from 'viem/ens'
 import { OUTPUT_CHAINS, OutputChain } from "@/config/chains"
@@ -77,12 +77,14 @@ export default function Home() {
   const [isContentHidden, setIsContentHidden] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [showWalletLink, setShowWalletLink] = useState(true)
+  const [userClearedAddress, setUserClearedAddress] = useState(false)
   const router = useRouter()
   const { address: connectedAddress } = useAccount()
   const { disconnect } = useDisconnect()
   const config = useConfig()
   const [selectedChain, setSelectedChain] = useState<OutputChain>(OUTPUT_CHAINS[0])
   const [isChainSelectorOpen, setIsChainSelectorOpen] = useState(false)
+  const [isReceiveUpdating, setIsReceiveUpdating] = useState(false)
 
   // Fetch API info on component mount
   useEffect(() => {
@@ -100,6 +102,11 @@ export default function Home() {
 
   // Update receive amount when send amount changes (no floats)
   useEffect(() => {
+    if (isReceiveUpdating) {
+      setIsReceiveUpdating(false)
+      return
+    }
+
     if (sendAmount) {
       try {
         const sendUnits = stringToUnits(sendAmount, DEFAULT_DECIMALS)
@@ -124,10 +131,17 @@ export default function Home() {
 
   // Set connected wallet address when it changes
   useEffect(() => {
-    if (connectedAddress && !addressBadge && !isDisconnecting) {
+    if (connectedAddress && !addressBadge && !isDisconnecting && !userClearedAddress) {
       setAddressBadge(connectedAddress)
     }
-  }, [connectedAddress, addressBadge, isDisconnecting])
+  }, [connectedAddress, addressBadge, isDisconnecting, userClearedAddress])
+
+  // Reset userClearedAddress when wallet is disconnected
+  useEffect(() => {
+    if (!connectedAddress) {
+      setUserClearedAddress(false)
+    }
+  }, [connectedAddress])
 
   // Automatically resolve ENS when inputValue changes and looks like an ENS name
   useEffect(() => {
@@ -158,6 +172,7 @@ export default function Home() {
       })
       if (address) {
         setAddressBadge(address)
+        setUserClearedAddress(false)
         setInputValue("")
       } else {
         setIsPasteShaking(true)
@@ -186,6 +201,7 @@ export default function Home() {
       const trimmedValue = inputValue.trim()
       if (isValidEVMAddress(trimmedValue)) {
         setAddressBadge(trimmedValue)
+        setUserClearedAddress(false)
         setInputValue("")
       } else if (isValidDomainName(trimmedValue)) {
         // ENS resolution is now handled by useEffect, but we can still trigger it on Enter if needed
@@ -215,6 +231,7 @@ export default function Home() {
       if (text) {
         if (isValidEVMAddress(text)) {
           setAddressBadge(text)
+          setUserClearedAddress(false)
           setInputValue("")
         } else {
           // Trigger ENS resolution on paste if it looks like an ENS name
@@ -238,16 +255,16 @@ export default function Home() {
   }
 
   const clearBadge = () => {
-    // If we're clearing the connected wallet's address, disconnect the wallet
-    if (addressBadge === connectedAddress) {
-      setIsDisconnecting(true)
-      disconnect()
-      // Reset the disconnecting flag after a short delay to ensure the disconnection is processed
-      setTimeout(() => {
-        setIsDisconnecting(false)
-      }, 500)
-    }
+    // Clear the address badge and disconnect the wallet
     setAddressBadge(null)
+    setUserClearedAddress(true)
+    setIsDisconnecting(true)
+    disconnect() // Disconnect the wallet
+    
+    // Reset the disconnecting flag after a short delay
+    setTimeout(() => {
+      setIsDisconnecting(false)
+    }, 500)
   }
 
   const handleSwap = async () => {
@@ -341,35 +358,41 @@ export default function Home() {
                     overlayIcon="/chains/Tron.svg"
                   />
 
-                  <div className="bg-card rounded-[44px] pl-6 pr-[15px] w-full max-w-[560px] flex items-center h-[135px]">
-                    <div className="flex-1">
-                      <label className="text-[18px] font-normal text-foreground mb-0 leading-none block">
-                        You receive
-                      </label>
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        value={receiveAmount}
-                        onChange={(e) => {
-                          // Reuse existing onChange logic from CurrencyInput
-                          const newValue = e.target.value.replace(/[^0-9.]/g, '')
-                          if (newValue.split('.').length > 2) return;
-                          setReceiveAmount(newValue)
-                        }}
-                        placeholder="0.0"
-                        className="text-[36px] font-semibold outline-none w-full text-foreground p-0 leading-none placeholder:text-muted-foreground"
-                      />
-                      <div className="flex items-center justify-between">
-                        <p className="text-normal text-muted-foreground mt-[0px] leading-none">{formatCurrency(receiveAmount)}</p>
-                      </div>
-                    </div>
-                    
-                    <ChainButton 
-                      networkIconSrc={selectedChain.icon}
-                      networkIconAlt={`${selectedChain.name} Network`}
-                      onClick={() => setIsChainSelectorOpen(true)}
-                    />
-                  </div>
+                  <CurrencyInput
+                    label="You receive"
+                    value={receiveAmount}
+                    currency={formatCurrency(receiveAmount)}
+                    currencyIcon="/USDT.svg"
+                    currencyName="USDT"
+                    onChange={(val: string) => {
+                      // When receive value changes, we need to calculate and update send amount
+                      try {
+                        setReceiveAmount(val);
+                        
+                        if (val) {
+                          setIsReceiveUpdating(true);
+                          
+                          const receiveUnits = stringToUnits(val, DEFAULT_DECIMALS);
+                          // Add back the fee for accurate calculation
+                          const receiveWithFee = receiveUnits + selectedChain.fixedFeeUsd;
+                          // Convert to send amount
+                          const sendUnits = convertReceiveToSend(receiveWithFee, SWAP_RATE_UNITS);
+
+                          const newSendAmount = unitsToString(sendUnits, DEFAULT_DECIMALS);
+                          setSendAmount(newSendAmount);
+                        } else {
+                          setSendAmount("");
+                        }
+                      } catch (e) {
+                        setSendAmount("");
+                      }
+                    }}
+                    isReceive={false}
+                    maxUnits={maxOrderOutput}
+                    swapRateUnits={SWAP_RATE_UNITS}
+                    onIconClick={() => setIsChainSelectorOpen(true)}
+                    overlayIcon={selectedChain.icon}
+                  />
 
                   <div className="bg-white rounded-[22px] py-[14px] flex items-center">
                     <div className="flex-1 flex items-center pl-[16px]">
