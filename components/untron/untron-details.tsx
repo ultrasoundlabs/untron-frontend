@@ -23,6 +23,10 @@ export function UntronDetails({ isOpen, order }: UntronDetailsProps) {
 
   const toChainInfo = chainMap[toChain] ?? { name: `Chain ${toChain}`, icon: "/chains/Arbitrum.svg" }
   
+  const explorerUrl = toChain === 10 
+    ? `https://optimistic.etherscan.io/tx/${sentTxHash}` 
+    : `https://layerzeroscan.com/tx/${sentTxHash}`
+
   return (
     <motion.div 
       className="rounded-md mb-4"
@@ -48,7 +52,7 @@ export function UntronDetails({ isOpen, order }: UntronDetailsProps) {
           <div className="flex justify-between">
             <span className="font-regular">Funds released</span>
             <a
-              href={`https://optimistic.etherscan.io/tx/${sentTxHash}`}
+              href={explorerUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="font-medium text-foreground underline"
@@ -60,4 +64,4 @@ export function UntronDetails({ isOpen, order }: UntronDetailsProps) {
       </div>
     </motion.div>
   )
-} 
+}
