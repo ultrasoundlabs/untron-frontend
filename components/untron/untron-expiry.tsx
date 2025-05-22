@@ -1,4 +1,4 @@
-import { Clock, Link } from "lucide-react"
+import { Link } from "lucide-react"
 import { UntronExchange } from "@/components/untron/untron-exchange"
 import { UntronDetails } from "@/components/untron/untron-details"
 import { motion } from "motion/react"
@@ -17,15 +17,15 @@ export function UntronExpiry({ sentTotal, receivedTotal, toChain, toCoin, sentTx
   const router = useRouter()
 
   return (
-    <div className="w-full flex flex-col items-center text-center">
-      <div className="flex items-center text-foreground mb-6">
-        <Clock className="w-8 h-8 text-yellow-500 mr-2" />
+    <div className="w-full flex flex-col">
+      <div className="flex items-center gap-3 text-foreground mb-6">
         <h2 className="text-3xl font-medium">Order expired</h2>
+        <img src="/emoji/Warning.png" alt="Warning" className="w-8 h-8" />
       </div>
 
       <div className="w-full flex flex-row gap-8">
         {/* Left Column */}
-        <div className="w-1/2 flex flex-col items-center">
+        <div className="w-1/2 flex flex-col">
           <UntronExchange
             sentTotal={sentTotal}
             receivedTotal={receivedTotal}
@@ -33,7 +33,7 @@ export function UntronExpiry({ sentTotal, receivedTotal, toChain, toCoin, sentTx
             toCoin={toCoin}
           />
 
-          <div className="max-w-lg w-full">
+          <div className="w-full">
             <UntronDetails
               isOpen={true}
               order={{
@@ -52,7 +52,10 @@ export function UntronExpiry({ sentTotal, receivedTotal, toChain, toCoin, sentTx
         <div className="w-1/2 flex flex-col items-center justify-center">
           <div className="bg-muted/50 p-6 rounded-lg space-y-4 max-w-md">
             <div className="flex items-start gap-3">
-              <Clock className="w-5 h-5 text-yellow-500 mt-1 flex-shrink-0" />
+              <svg className="w-5 h-5 text-yellow-500 mt-1 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12,6 12,12 16,14"/>
+              </svg>
               <p className="text-foreground leading-relaxed">
                 The order has expired because no funds were sent to the Tron address before the deadline.
               </p>
