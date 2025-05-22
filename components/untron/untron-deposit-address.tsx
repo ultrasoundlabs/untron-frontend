@@ -1,6 +1,20 @@
 import { QrCode } from "lucide-react"
 import { motion } from "motion/react"
 
+// Helper function to format address display
+const formatAddress = (address: string, truncate = false): string => {
+  if (!address) return "";
+  if (!truncate) return address;
+  
+  // For mobile, replace characters 15-20 with "..."
+  if (address.length > 20) {
+    return `${address.slice(0, 14)}...${address.slice(20)}`;
+  }
+  
+  // Fallback for shorter addresses
+  return address;
+}
+
 interface UntronDepositAddressProps {
   copied: boolean
   handleCopy: () => void
@@ -16,7 +30,7 @@ export function UntronDepositAddress({ copied, handleCopy, isMobile, onShowQr, d
         <div className="text-[18px] text-muted-foreground font-regular mb-[0px]">Deposit address</div>
         <div className="flex items-center justify-between w-full flex-wrap sm:flex-nowrap gap-2 sm:gap-0">
           <div className="text-[18px] font-medium text-foreground truncate pr-2 w-full sm:w-auto">
-            {depositAddress}
+            {formatAddress(depositAddress, isMobile)}
           </div>
           <div className="flex-shrink-0 ml-auto sm:ml-0 flex gap-2">
             <motion.button 
