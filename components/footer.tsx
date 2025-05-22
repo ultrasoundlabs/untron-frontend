@@ -15,13 +15,24 @@ export default function Footer() {
             {footerLinks.map((section, index) => (
               <div 
                 key={section.title} 
-                className={`w-1/2 sm:w-1/3 mb-8 pr-4 ${index > 0 ? 'pl-4 sm:pl-0' : ''}`}
+                className={`${
+                  section.title === "Contacts" 
+                    ? "w-full sm:w-1/3" 
+                    : "w-1/2 sm:w-1/3"
+                } mb-8 pr-4 ${index > 0 ? 'pl-4 sm:pl-0' : ''}`}
               >
                 <h3 className="font-medium mb-1">{section.title}</h3>
                 <ul className="space-y-0.5 text-base font-normal text-muted-foreground">
                   {section.links.map((link) => (
                     <li key={link.text}>
-                      <Link href={link.href} target="_blank" rel="noopener noreferrer">{link.text}</Link>
+                      <Link 
+                        href={link.href} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="break-words"
+                      >
+                        {link.text}
+                      </Link>
                     </li>
                   ))}
                 </ul>
