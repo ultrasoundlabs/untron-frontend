@@ -4,6 +4,7 @@ import "./globals.css"
 import "@rainbow-me/rainbowkit/styles.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import WalletProvider from "@/components/wallet-provider"
+import { Toaster } from "sonner"
 
 const geist = Geist({
   subsets: ["latin"],
@@ -20,6 +21,7 @@ export default function RootLayout({
       <body className="font-geist bg-background">
         <ThemeProvider attribute="class" defaultTheme="white" enableSystem>
           <WalletProvider>{children}</WalletProvider>
+          <Toaster position="bottom-center" />
         </ThemeProvider>
       </body>
     </html>
