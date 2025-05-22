@@ -17,6 +17,13 @@ import useSWR from "swr"
 import { UntronSuccess } from "@/components/untron/untron-success"
 import { UntronExpiry } from "@/components/untron/untron-expiry"
 
+// Helper function to format address display
+const formatAddress = (address: string, truncate = false): string => {
+  if (!address) return "";
+  if (!truncate || address.length <= 11) return address;
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
+}
+
 const fetcher = async (url: string) => {
   const res = await fetch(url)
   if (!res.ok) {
@@ -214,6 +221,7 @@ export default function UntronInterface({ orderId }: { orderId: string }) {
 
             <motion.div
               key="exchange"
+              className="w-full"
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ duration: 0.3, delay: 0.1 }}
@@ -228,6 +236,7 @@ export default function UntronInterface({ orderId }: { orderId: string }) {
 
             <motion.div
               key="deposit"
+              className="w-full"
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ duration: 0.3, delay: 0.2 }}
@@ -243,12 +252,13 @@ export default function UntronInterface({ orderId }: { orderId: string }) {
 
             <motion.div
               key="details"
+              className="w-full"
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ duration: 0.3, delay: 0.3 }}
             >
               <div className="flex items-center justify-between mb-4">
-                <div className="text-muted-foreground text-[16px] font-regular">Recipient address: {beneficiary}</div>
+                <div className="text-muted-foreground text-[16px] font-regular">Recipient address: {formatAddress(beneficiary, true)}</div>
                 <motion.button
                   onClick={() => setDetailsOpen(!detailsOpen)}
                   className="flex items-center text-muted-foreground text-[16px] font-regular"
