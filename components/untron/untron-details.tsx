@@ -1,6 +1,13 @@
 import { motion } from "motion/react"
 import { unitsToString } from "@/lib/units"
 import { OUTPUT_CHAINS } from "@/config/chains"
+import { useIsMobile } from "@/hooks/use-mobile"
+
+// Helper function to format address display
+const formatAddress = (address: string): string => {
+  if (!address) return "";
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
+}
 
 interface UntronDetailsProps {
   isOpen: boolean
@@ -46,7 +53,7 @@ export function UntronDetails({ isOpen, order }: UntronDetailsProps) {
         </div>
         <div className="flex justify-between">
           <span className="font-regular">Send TRC-20 to</span>
-          <span className="font-medium text-foreground">{receiver.slice(0, 8)}...{receiver.slice(-6)}</span>
+          <span className="font-medium text-foreground">{formatAddress(receiver)}</span>
         </div>
         {sentTxHash && (
           <div className="flex justify-between">
