@@ -25,7 +25,7 @@ export default function Header() {
         <ThemeToggle />
         <button className="flex items-center font-medium text-foreground bg-card rounded-full px-3 py-1.5">
           <Globe className="w-5 h-5 mr-1" />
-          <span>Eng</span>
+          <span>EN</span>
         </button>
         <ConnectButton.Custom>
           {({
@@ -81,42 +81,11 @@ export default function Header() {
 
                   return (
                     <div className="flex gap-3">
-                      <button
-                        onClick={openChainModal}
-                        className="flex items-center bg-card text-foreground rounded-full px-3 py-1.5"
-                      >
-                        {chain.hasIcon && (
-                          <div
-                            className="mr-2"
-                            style={{
-                              background: chain.iconBackground,
-                              width: 16,
-                              height: 16,
-                              borderRadius: 999,
-                              overflow: 'hidden',
-                            }}
-                          >
-                            {chain.iconUrl && (
-                              <Image
-                                alt={chain.name ?? 'Chain icon'}
-                                src={chain.iconUrl}
-                                width={16}
-                                height={16}
-                              />
-                            )}
-                          </div>
-                        )}
-                        {chain.name}
-                      </button>
-
                       <button 
                         onClick={openAccountModal}
                         className="bg-card text-foreground font-medium rounded-full px-3 py-1.5 flex items-center"
                       >
                         {account.displayName}
-                        {account.displayBalance
-                          ? ` (${account.displayBalance})`
-                          : ''}
                       </button>
                     </div>
                   );

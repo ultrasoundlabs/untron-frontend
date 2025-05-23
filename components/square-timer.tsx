@@ -84,6 +84,8 @@ export default function SquareTimer({
   const totalSize = size + stroke;
   // Calculate the half stroke width for positioning
   const halfStroke = stroke / 2;
+  // Calculate the inner border radius to match the SVG path interior
+  const innerBorderRadius = Math.max(0, borderRadius - halfStroke);
 
   return (
     <div 
@@ -132,7 +134,7 @@ export default function SquareTimer({
       <div 
         className="absolute flex items-center justify-center bg-card"
         style={{ 
-          borderRadius: `${borderRadius}px`,
+          borderRadius: `${innerBorderRadius}px`,
           top: stroke,
           left: stroke,
           right: stroke,

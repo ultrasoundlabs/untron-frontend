@@ -1,9 +1,17 @@
 import { motion } from "motion/react"
 import { unitsToString } from "@/lib/units"
 import { OUTPUT_CHAINS } from "@/config/chains"
+import { useIsMobile } from "@/hooks/use-mobile"
+
+// Helper function to format address display
+const formatAddress = (address: string): string => {
+  if (!address) return "";
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
+}
 
 interface UntronDetailsProps {
   isOpen: boolean
+  isMobile: boolean
   order: {
     sentTotal: bigint
     receivedTotal: bigint
@@ -14,7 +22,7 @@ interface UntronDetailsProps {
   }
 }
 
-export function UntronDetails({ isOpen, order }: UntronDetailsProps) {
+export function UntronDetails({ isOpen, isMobile, order }: UntronDetailsProps) {
   const { sentTotal, receivedTotal, sentTxHash, toCoin, toChain, receiver } = order
   const chainMap: Record<number, { name: string; icon: string; fixedFeeUsd: bigint }> = OUTPUT_CHAINS.reduce((acc, c) => {
     acc[c.id] = { name: c.name, icon: c.icon, fixedFeeUsd: c.fixedFeeUsd }
@@ -45,8 +53,8 @@ export function UntronDetails({ isOpen, order }: UntronDetailsProps) {
           <span className="font-medium text-foreground">{unitsToString(receivedTotal - toChainInfo.fixedFeeUsd)} {toCoin.toUpperCase()} {toChainInfo.name}</span>
         </div>
         <div className="flex justify-between">
-          <span className="font-regular">Send TRC-20 to</span>
-          <span className="font-medium text-foreground">{receiver.slice(0, 8)}...{receiver.slice(-6)}</span>
+          <span className="font-regular">Recipient address</span>
+          <span className="font-medium text-foreground">{isMobile ? formatAddress(receiver) : receiver}</span>
         </div>
         {sentTxHash && (
           <div className="flex justify-between">

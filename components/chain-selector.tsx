@@ -57,7 +57,7 @@ export default function ChainSelector({ open, chains, selectedChainId, onSelect,
                     <div className="flex flex-col items-start">
                       <span className="text-lg font-normal text-black font-geist">{chain.name}</span>
                       {chain.fixedFeeUsd > 0n && (
-                        <span className="text-xs text-gray-500 font-geist">
+                        <span className="text-[16px] text-gray-500 font-geist">
                           {unitsToString(chain.fixedFeeUsd, DEFAULT_DECIMALS)} USDT fee
                         </span>
                       )}

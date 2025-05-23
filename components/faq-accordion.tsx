@@ -4,6 +4,7 @@ import { useState } from "react"
 import { ChevronDown } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { defaultFaqItems } from "../config/faq-items"
+import Image from "next/image"
 
 export interface FaqItem {
   question: string
@@ -42,14 +43,22 @@ export default function FaqAccordion({ items = defaultFaqItems }: FaqAccordionPr
             ease: "easeOut"
           }}
         >
-          <div 
-            className="px-6 py-[22px] cursor-pointer" 
-            onClick={() => toggleAccordion(index)}
-          >
-            <div className="w-full flex items-center justify-between text-left">
+          <div className="px-6 py-[22px]">
+            <div 
+              className="w-full flex items-center justify-between text-left cursor-pointer"
+              onClick={() => toggleAccordion(index)}
+            >
               <span className="font-medium text-lg flex items-center">
                 {item.question}
-                {item.emoji && <span className="ml-1">{item.emoji}</span>}
+                {item.emoji && (
+                  <span className="ml-1">
+                    {item.emoji.startsWith('/emoji/') ? (
+                      <img src={item.emoji} alt="emoji" className="inline-block w-[18px] h-[18px]" />
+                    ) : (
+                      item.emoji
+                    )}
+                  </span>
+                )}
               </span>
               <motion.div
                 animate={{ rotate: openIndexes.includes(index) ? 180 : 0 }}

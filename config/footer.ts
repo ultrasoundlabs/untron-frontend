@@ -30,7 +30,7 @@ export const footerLinks: FooterSection[] = [
   {
     title: "Contacts",
     links: [
-      { text: "SHPS (LLC) Ultrasound Labs", href: "mailto:contact@untron.finance" },
+      { text: "SHPS (LLC) / Ultrasound Labs", href: "mailto:contact@untron.finance" },
       { text: "contact@untron.finance", href: "mailto:contact@untron.finance" },
     ]
   }
