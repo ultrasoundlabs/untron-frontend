@@ -26,48 +26,89 @@ interface UntronDepositAddressProps {
 export function UntronDepositAddress({ copied, handleCopy, isMobile, onShowQr, depositAddress }: UntronDepositAddressProps) {
   return (
     <div className="mb-4 w-full">
-      <div className="bg-card rounded-[22px] py-3 px-4 w-full">
-        <div className="text-[18px] text-muted-foreground font-regular mb-[0px]">Deposit address</div>
-        <div className="flex items-center justify-between w-full flex-wrap sm:flex-nowrap gap-2 sm:gap-0">
-          <div className="text-[18px] font-medium text-foreground truncate pr-2 w-full sm:w-auto">
-            {formatAddress(depositAddress, isMobile)}
-          </div>
-          <div className="flex-shrink-0 ml-auto sm:ml-0 flex gap-2">
-            <motion.button 
-              onClick={handleCopy} 
-              className="bg-black text-white text-[16px] font-medium px-3 py-1 rounded-full"
-              whileHover={{ 
-                width: "auto",
-                scale: 1.05,
-                originX: 1
-              }}
-              whileTap={{ 
-                scale: 0.9,
-                originX: 1
-              }}
-              animate={{ 
-                backgroundColor: "black",
-                color: "white",
-                width: "auto",
-                transition: { 
-                  duration: 0.15,
-                  ease: "easeInOut"
-                }
-              }}
-            >
-              {copied ? "Copied" : "Copy"}
-            </motion.button>
-            {isMobile && (
+      {/* Desktop layout: match the full exchange block width */}
+      <div className="hidden sm:block">
+        <div className="bg-card rounded-[22px] py-3 px-4 w-full">
+          <div className="text-[18px] text-muted-foreground font-regular mb-1">Deposit address</div>
+          <div className="flex items-center justify-between gap-4">
+            <div className="text-[18px] font-medium text-foreground overflow-hidden text-ellipsis">
+              {formatAddress(depositAddress, false)}
+            </div>
+            <div className="flex-shrink-0 flex gap-2">
               <motion.button 
-                onClick={onShowQr} 
-                className="bg-primary text-primary-foreground text-[16px] font-medium px-3 py-1 rounded-full flex items-center"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                onClick={handleCopy} 
+                className="bg-black text-white text-[16px] font-medium px-3 py-1 rounded-full"
+                whileHover={{ 
+                  width: "auto",
+                  scale: 1.05,
+                  originX: 1
+                }}
+                whileTap={{ 
+                  scale: 0.9,
+                  originX: 1
+                }}
+                animate={{ 
+                  backgroundColor: "black",
+                  color: "white",
+                  width: "auto",
+                  transition: { 
+                    duration: 0.15,
+                    ease: "easeInOut"
+                  }
+                }}
               >
-                <QrCode className="w-4 h-4 mr-1" />
-                Show QR
+                {copied ? "Copied" : "Copy"}
               </motion.button>
-            )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile layout: full width */}
+      <div className="block sm:hidden">
+        <div className="bg-card rounded-[22px] py-3 px-4 w-full">
+          <div className="text-[18px] text-muted-foreground font-regular mb-[0px]">Deposit address</div>
+          <div className="flex items-center justify-between w-full flex-wrap gap-2">
+            <div className="text-[18px] font-medium text-foreground truncate pr-2 w-full sm:w-auto">
+              {formatAddress(depositAddress, isMobile)}
+            </div>
+            <div className="flex-shrink-0 ml-auto flex gap-2">
+              <motion.button 
+                onClick={handleCopy} 
+                className="bg-black text-white text-[16px] font-medium px-3 py-1 rounded-full"
+                whileHover={{ 
+                  width: "auto",
+                  scale: 1.05,
+                  originX: 1
+                }}
+                whileTap={{ 
+                  scale: 0.9,
+                  originX: 1
+                }}
+                animate={{ 
+                  backgroundColor: "black",
+                  color: "white",
+                  width: "auto",
+                  transition: { 
+                    duration: 0.15,
+                    ease: "easeInOut"
+                  }
+                }}
+              >
+                {copied ? "Copied" : "Copy"}
+              </motion.button>
+              {isMobile && (
+                <motion.button 
+                  onClick={onShowQr} 
+                  className="bg-primary text-primary-foreground text-[16px] font-medium px-3 py-1 rounded-full flex items-center"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <QrCode className="w-4 h-4 mr-1" />
+                  Show QR
+                </motion.button>
+              )}
+            </div>
           </div>
         </div>
       </div>
