@@ -40,7 +40,7 @@ export const defaultFaqItems: FaqItem[] = [
   {
     question: "How can I help?",
     answer:
-      "Untron is a completely open-source project, and its code is available on <a href='https://github.com/ultrasoundlabs' target='_blank' rel='noopener noreferrer' class='text-primary hover:underline'>GitHub</a>. If you're not a developer, you can help us by spreading the word about Untron, or providing liquidity for swaps. For the latter, reach out to us on <a href='https://t.me/alexhooketh' target='_blank' rel='noopener noreferrer' class='text-primary hover:underline'>Telegram</a> or at <a href='mailto:contact@untron.finance' class='text-primary hover:underline'>contact@untron.finance</a>.",
+      "Untron is a completely open-source project, and its code is available on <a href='https://github.com/ultrasoundlabs' target='_blank' rel='noopener noreferrer' class='text-primary hover:underline'>GitHub</a>. If you're not a developer, you can help us by spreading the word about Untron, or providing liquidity for swaps. For the latter, reach out to us on <a href='https://t.me/alexhooketh' target='_blank' rel='noopener noreferrer' class='text-primary underline hover:underline'>Telegram</a> or at <a href='mailto:contact@untron.finance' class='text-primary underline hover:underline'>contact@untron.finance</a>.",
     emoji: "/emoji/Thumbs Up.png",
   },
 ]; 
