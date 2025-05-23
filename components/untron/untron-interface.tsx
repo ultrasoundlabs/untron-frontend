@@ -271,13 +271,14 @@ export default function UntronInterface({ orderId }: { orderId: string }) {
               <div className="min-h-[110px]">
                 <UntronDetails
                   isOpen={detailsOpen}
+                  isMobile={isMobile}
                   order={{
                     sentTotal: remainingToSend,
                     receivedTotal: expectedReceiveForRemaining,
                     sentTxHash,
                     toCoin,
                     toChain,
-                    receiver,
+                    receiver: beneficiary,
                   }}
                 />
               </div>
