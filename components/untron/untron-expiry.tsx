@@ -11,9 +11,10 @@ interface UntronExpiryProps {
   toCoin: string
   sentTxHash: string
   receiver: string
+  isMobile: boolean
 }
 
-export function UntronExpiry({ sentTotal, receivedTotal, toChain, toCoin, sentTxHash, receiver }: UntronExpiryProps) {
+export function UntronExpiry({ sentTotal, receivedTotal, toChain, toCoin, sentTxHash, receiver, isMobile }: UntronExpiryProps) {
   const router = useRouter()
 
   return (
@@ -36,6 +37,7 @@ export function UntronExpiry({ sentTotal, receivedTotal, toChain, toCoin, sentTx
           <div className="w-full">
             <UntronDetails
               isOpen={true}
+              isMobile={isMobile}
               order={{
                 sentTotal,
                 receivedTotal,

@@ -173,6 +173,7 @@ export default function UntronInterface({ orderId }: { orderId: string }) {
               toCoin={toCoin}
               sentTxHash={sentTxHash}
               receiver={receiver}
+              isMobile={isMobile}
             />
           ) : (
             <UntronSuccess
@@ -182,6 +183,7 @@ export default function UntronInterface({ orderId }: { orderId: string }) {
               toCoin={toCoin}
               sentTxHash={sentTxHash}
               receiver={receiver}
+              isMobile={isMobile}
             />
           )}
         </main>
