@@ -14,6 +14,7 @@ import { API_BASE_URL, ApiInfoResponse, SWAP_RATE_UNITS } from "@/config/api"
 import { stringToUnits, unitsToString, DEFAULT_DECIMALS, convertSendToReceive, convertReceiveToSend } from "@/lib/units"
 import { getEnsAddress } from '@wagmi/core'
 import { normalize } from 'viem/ens'
+import { getAddress } from 'viem'
 import { OUTPUT_CHAINS, OutputChain } from "@/config/chains"
 import ChainSelector from "@/components/chain-selector"
 import ChainButton from "@/components/chain-button"
@@ -132,7 +133,15 @@ export default function Home() {
   // Set connected wallet address when it changes
   useEffect(() => {
     if (connectedAddress && !addressBadge && !isDisconnecting && !userClearedAddress) {
-      setAddressBadge(connectedAddress)
+      try {
+        const checksummedAddress = getAddress(connectedAddress);
+        setAddressBadge(checksummedAddress);
+      } catch (error) {
+        console.error("Failed to checksum connected address:", error);
+        // Optionally handle the error, e.g., by setting the non-checksummed address
+        // or displaying an error message. For now, we'll let it be.
+        setAddressBadge(connectedAddress);
+      }
     }
   }, [connectedAddress, addressBadge, isDisconnecting, userClearedAddress])
 
@@ -143,16 +152,36 @@ export default function Home() {
     }
   }, [connectedAddress])
 
-  // Automatically resolve ENS when inputValue changes and looks like an ENS name
+  // Automatically set address or resolve ENS from input
   useEffect(() => {
-    const trimmedValue = inputValue.trim()
-    // Only auto-resolve for .eth names to avoid premature resolution for other TLDs
-    if (isPotentialEnsName(trimmedValue) && !isValidEVMAddress(trimmedValue) && !isResolvingEns) {
-      setIsResolvingEns(true)
-      setResolvingEnsName(trimmedValue)
-      resolveEnsAddress(trimmedValue)
+    const trimmedValue = inputValue.trim();
+
+    // If input is empty after trimming, or if ENS resolution is already in progress, do nothing.
+    if (!trimmedValue || isResolvingEns) {
+      return;
     }
-  }, [inputValue]) // Dependencies: inputValue
+
+    if (isValidEVMAddress(trimmedValue)) {
+      try {
+        const checksummedAddress = getAddress(trimmedValue);
+        setAddressBadge(checksummedAddress);
+        setUserClearedAddress(false);
+        setInputValue(""); // Clear input, leading to badge display
+      } catch (error) {
+        console.error("Failed to checksum address:", error);
+        // Fallback or error display if needed
+        setAddressBadge(trimmedValue); // Or handle error appropriately
+        setUserClearedAddress(false);
+        setInputValue("");
+      }
+    } else if (isPotentialEnsName(trimmedValue)) {
+      // Not an EVM address, but could be an ENS name.
+      // isResolvingEns is already false due to the check at the effect's start.
+      setIsResolvingEns(true);
+      setResolvingEnsName(trimmedValue);
+      resolveEnsAddress(trimmedValue); // This will also clear inputValue
+    }
+  }, [inputValue, isResolvingEns]); // Dependencies updated
 
   // Hide Tron wallet link if input has value or badge is set
   useEffect(() => {
@@ -171,9 +200,17 @@ export default function Home() {
         name: normalizedName,
       })
       if (address) {
-        setAddressBadge(address)
-        setUserClearedAddress(false)
-        setInputValue("")
+        try {
+          const checksummedAddress = getAddress(address);
+          setAddressBadge(checksummedAddress);
+          setUserClearedAddress(false);
+          setInputValue("")
+        } catch (checksumError) {
+          console.error('Failed to checksum resolved ENS address:', checksumError);
+          setAddressBadge(address); // Fallback to non-checksummed
+          setUserClearedAddress(false);
+          setInputValue("");
+        }
       } else {
         setIsPasteShaking(true)
         setShowErrorPlaceholder(true)
@@ -200,9 +237,17 @@ export default function Home() {
     if (e.key === "Enter" && inputValue.trim()) {
       const trimmedValue = inputValue.trim()
       if (isValidEVMAddress(trimmedValue)) {
-        setAddressBadge(trimmedValue)
-        setUserClearedAddress(false)
-        setInputValue("")
+        try {
+          const checksummedAddress = getAddress(trimmedValue);
+          setAddressBadge(checksummedAddress);
+          setUserClearedAddress(false);
+          setInputValue("");
+        } catch (error) {
+          console.error("Failed to checksum address on Enter:", error);
+          setAddressBadge(trimmedValue); // Fallback
+          setUserClearedAddress(false);
+          setInputValue("");
+        }
       } else if (isValidDomainName(trimmedValue)) {
         // ENS resolution is now handled by useEffect, but we can still trigger it on Enter if needed
         // or if the user confirms an ENS name they typed.
@@ -230,9 +275,17 @@ export default function Home() {
     navigator.clipboard.readText().then((text) => {
       if (text) {
         if (isValidEVMAddress(text)) {
-          setAddressBadge(text)
-          setUserClearedAddress(false)
-          setInputValue("")
+          try {
+            const checksummedAddress = getAddress(text);
+            setAddressBadge(checksummedAddress);
+            setUserClearedAddress(false);
+            setInputValue("");
+          } catch (error) {
+            console.error("Failed to checksum pasted address:", error);
+            setAddressBadge(text); // Fallback
+            setUserClearedAddress(false);
+            setInputValue("");
+          }
         } else {
           // Trigger ENS resolution on paste if it looks like an ENS name
           if (isValidDomainName(text) && !isResolvingEns) {
