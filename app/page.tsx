@@ -537,7 +537,7 @@ export default function Home() {
                     {isSwapping ? (
                       <Loader2 className="animate-spin w-6 h-6" />
                     ) : (
-                      "Untron!"
+                      "Untron"
                     )}
                   </button>
 
