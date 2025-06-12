@@ -88,6 +88,20 @@ export default function Home() {
   const [isChainSelectorOpen, setIsChainSelectorOpen] = useState(false)
   const [isReceiveUpdating, setIsReceiveUpdating] = useState(false)
   const [transferMode, setTransferMode] = useState<TransferMode>("send")
+  const [selectedToken, setSelectedToken] = useState<"USDT" | "USDC">("USDT")
+
+  // Allowed chains in RECEIVE mode (ordered)
+  const RECEIVE_CHAIN_IDS: number[] = [8453, 10, 130, 480, 42161]
+  const receiveChains = OUTPUT_CHAINS.filter((c) => RECEIVE_CHAIN_IDS.includes(c.id)).sort(
+    (a, b) => RECEIVE_CHAIN_IDS.indexOf(a.id) - RECEIVE_CHAIN_IDS.indexOf(b.id)
+  )
+
+  // Keep selectedChain valid when switching to receive mode
+  useEffect(() => {
+    if (transferMode === "receive" && !RECEIVE_CHAIN_IDS.includes(selectedChain.id)) {
+      setSelectedChain(receiveChains[0])
+    }
+  }, [transferMode])
 
   // Fetch API info on component mount
   useEffect(() => {
@@ -411,6 +425,10 @@ export default function Home() {
                     setAddressBadge(null)
                     setInputValue("")
                     setUserClearedAddress(false)
+                    // Reset token to USDT when switching to send mode
+                    if (mode === "send") {
+                      setSelectedToken("USDT")
+                    }
                   }}
                 />
 
@@ -471,8 +489,8 @@ export default function Home() {
                         label="You send"
                         value={sendAmount}
                         currency={formatCurrency(sendAmount)}
-                        currencyIcon="/USDT.svg"
-                        currencyName="USDT"
+                        currencyIcon={selectedToken === "USDT" ? "/USDT.svg" : "/usdc.svg"}
+                        currencyName={selectedToken}
                         onChange={(val: string) => {
                           // When the amount the user WILL SEND (non-Tron) changes, calculate how much they will receive on Tron
                           try {
@@ -710,10 +728,13 @@ export default function Home() {
 
       <ChainSelector
         open={isChainSelectorOpen}
-        chains={OUTPUT_CHAINS}
+        chains={transferMode === "receive" ? receiveChains : OUTPUT_CHAINS}
         selectedChainId={selectedChain.id}
         onSelect={(c) => setSelectedChain(c)}
         onClose={() => setIsChainSelectorOpen(false)}
+        showTokenSelector={transferMode === "receive"}
+        selectedToken={selectedToken}
+        onSelectToken={setSelectedToken}
       />
     </div>
   )
