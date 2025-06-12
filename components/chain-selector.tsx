@@ -34,10 +34,10 @@ export default function ChainSelector({ open, chains, selectedChainId, onSelect,
               <h3 className="text-2xl font-normal font-geist">Select network</h3>
               <div className="relative">
                 <button 
-                  className="relative w-12 h-12 flex items-center justify-center focus:outline-none group" 
+                  className="relative w-10 h-10 flex items-center justify-center focus:outline-none group" 
                   onClick={onClose}
                 >
-                  <div className="absolute inset-0 rounded-full bg-transparent group-hover:bg-[#F5F5F7] w-12 h-12"></div>
+                  <div className="absolute inset-0 rounded-full bg-transparent group-hover:bg-[#F5F5F7] w-10 h-10"></div>
                   <img src="/close.svg" alt="Close" width={48} height={48} className="relative z-10" />
                 </button>
               </div>
@@ -53,11 +53,11 @@ export default function ChainSelector({ open, chains, selectedChainId, onSelect,
                   }}
                 >
                   <div className="flex items-center space-x-4">
-                    <img src={chain.icon} alt={chain.name} className="w-12 h-12" />
+                    <img src={chain.icon} alt={chain.name} className="w-10 h-10" />
                     <div className="flex flex-col items-start">
                       <span className="text-lg font-normal text-black font-geist">{chain.name}</span>
                       {chain.fixedFeeUsd > 0n && (
-                        <span className="text-[16px] text-gray-500 font-geist">
+                        <span className="text-sm text-gray-500 font-geist">
                           {unitsToString(chain.fixedFeeUsd, DEFAULT_DECIMALS)} USDT fee
                         </span>
                       )}

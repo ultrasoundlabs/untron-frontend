@@ -18,6 +18,7 @@ import { getAddress } from 'viem'
 import { OUTPUT_CHAINS, OutputChain } from "@/config/chains"
 import ChainSelector from "@/components/chain-selector"
 import ChainButton from "@/components/chain-button"
+import ModeSwitcher, { TransferMode } from "@/components/mode-switcher"
 
 const isValidEVMAddress = (address: string): boolean => {
   // Ethereum address validation (0x followed by 40 hex characters)
@@ -86,6 +87,7 @@ export default function Home() {
   const [selectedChain, setSelectedChain] = useState<OutputChain>(OUTPUT_CHAINS[0])
   const [isChainSelectorOpen, setIsChainSelectorOpen] = useState(false)
   const [isReceiveUpdating, setIsReceiveUpdating] = useState(false)
+  const [transferMode, setTransferMode] = useState<TransferMode>("send")
 
   // Fetch API info on component mount
   useEffect(() => {
@@ -130,9 +132,9 @@ export default function Home() {
     }
   }, [sendAmount, selectedChain])
 
-  // Set connected wallet address when it changes
+  // Set connected wallet address when it changes (only in send mode)
   useEffect(() => {
-    if (connectedAddress && !addressBadge && !isDisconnecting && !userClearedAddress) {
+    if (connectedAddress && !addressBadge && !isDisconnecting && !userClearedAddress && transferMode === "send") {
       try {
         const checksummedAddress = getAddress(connectedAddress);
         setAddressBadge(checksummedAddress);
@@ -143,7 +145,7 @@ export default function Home() {
         setAddressBadge(connectedAddress);
       }
     }
-  }, [connectedAddress, addressBadge, isDisconnecting, userClearedAddress])
+  }, [connectedAddress, addressBadge, isDisconnecting, userClearedAddress, transferMode])
 
   // Reset userClearedAddress when wallet is disconnected
   useEffect(() => {
@@ -398,54 +400,145 @@ export default function Home() {
                   <h1 className="text-2xl font-medium text-[#8d8d8d]">Let's transfer now.</h1>
                 </div>
 
+                <ModeSwitcher 
+                  mode={transferMode} 
+                  onModeChange={(mode) => {
+                    setTransferMode(mode)
+                    // Clear amounts when switching modes
+                    setSendAmount("")
+                    setReceiveAmount("")
+                    // Clear address field as different modes require different address types
+                    setAddressBadge(null)
+                    setInputValue("")
+                    setUserClearedAddress(false)
+                  }}
+                />
+
                 <div className="space-y-4">
-                  <CurrencyInput
-                    label="You send"
-                    value={sendAmount}
-                    currency={formatCurrency(sendAmount)}
-                    currencyIcon="/USDT.svg"
-                    currencyName="USDT Tron"
-                    onChange={(val: string) => setSendAmount(val)}
-                    maxUnits={maxOrderOutput}
-                    swapRateUnits={SWAP_RATE_UNITS}
-                    overlayIcon="/chains/Tron.svg"
-                  />
+                  {transferMode === "send" ? (
+                    <>
+                      <CurrencyInput
+                        label="You send"
+                        value={sendAmount}
+                        currency={formatCurrency(sendAmount)}
+                        currencyIcon="/USDT.svg"
+                        currencyName="USDT Tron"
+                        onChange={(val: string) => setSendAmount(val)}
+                        maxUnits={maxOrderOutput}
+                        swapRateUnits={SWAP_RATE_UNITS}
+                        overlayIcon="/chains/Tron.svg"
+                      />
 
-                  <CurrencyInput
-                    label="You receive"
-                    value={receiveAmount}
-                    currency={formatCurrency(receiveAmount)}
-                    currencyIcon="/USDT.svg"
-                    currencyName="USDT"
-                    onChange={(val: string) => {
-                      // When receive value changes, we need to calculate and update send amount
-                      try {
-                        setReceiveAmount(val);
-                        
-                        if (val) {
-                          setIsReceiveUpdating(true);
-                          
-                          const receiveUnits = stringToUnits(val, DEFAULT_DECIMALS);
-                          // Add back the fee for accurate calculation
-                          const receiveWithFee = receiveUnits + selectedChain.fixedFeeUsd;
-                          // Convert to send amount
-                          const sendUnits = convertReceiveToSend(receiveWithFee, SWAP_RATE_UNITS);
+                      <CurrencyInput
+                        label="You receive"
+                        value={receiveAmount}
+                        currency={formatCurrency(receiveAmount)}
+                        currencyIcon="/USDT.svg"
+                        currencyName="USDT"
+                        onChange={(val: string) => {
+                          // When receive value changes, we need to calculate and update send amount
+                          try {
+                            setReceiveAmount(val);
+                            
+                            if (val) {
+                              setIsReceiveUpdating(true);
+                              
+                              const receiveUnits = stringToUnits(val, DEFAULT_DECIMALS);
+                              // Add back the fee for accurate calculation
+                              const receiveWithFee = receiveUnits + selectedChain.fixedFeeUsd;
+                              // Convert to send amount
+                              const sendUnits = convertReceiveToSend(receiveWithFee, SWAP_RATE_UNITS);
 
-                          const newSendAmount = unitsToString(sendUnits, DEFAULT_DECIMALS);
-                          setSendAmount(newSendAmount);
-                        } else {
-                          setSendAmount("");
-                        }
-                      } catch (e) {
-                        setSendAmount("");
-                      }
-                    }}
-                    isReceive={false}
-                    maxUnits={maxOrderOutput}
-                    swapRateUnits={SWAP_RATE_UNITS}
-                    onIconClick={() => setIsChainSelectorOpen(true)}
-                    overlayIcon={selectedChain.icon}
-                  />
+                              const newSendAmount = unitsToString(sendUnits, DEFAULT_DECIMALS);
+                              setSendAmount(newSendAmount);
+                            } else {
+                              setSendAmount("");
+                            }
+                          } catch (e) {
+                            setSendAmount("");
+                          }
+                        }}
+                        isReceive={false}
+                        maxUnits={maxOrderOutput}
+                        swapRateUnits={SWAP_RATE_UNITS}
+                        onIconClick={() => setIsChainSelectorOpen(true)}
+                        overlayIcon={selectedChain.icon}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <CurrencyInput
+                        label="You send"
+                        value={sendAmount}
+                        currency={formatCurrency(sendAmount)}
+                        currencyIcon="/USDT.svg"
+                        currencyName="USDT"
+                        onChange={(val: string) => {
+                          // When the amount the user WILL SEND (non-Tron) changes, calculate how much they will receive on Tron
+                          try {
+                            setSendAmount(val)
+
+                            if (val) {
+                              setIsReceiveUpdating(true)
+
+                              const sendUnits = stringToUnits(val, DEFAULT_DECIMALS)
+                              // Convert to Tron side and subtract fee
+                              const receiveUnits = convertSendToReceive(sendUnits, SWAP_RATE_UNITS)
+                              const receiveMinusFee =
+                                receiveUnits > selectedChain.fixedFeeUsd
+                                  ? receiveUnits - selectedChain.fixedFeeUsd
+                                  : 0n
+
+                              const newReceiveAmount = unitsToString(receiveMinusFee, DEFAULT_DECIMALS)
+                              setReceiveAmount(newReceiveAmount)
+                            } else {
+                              setReceiveAmount("")
+                            }
+                          } catch (e) {
+                            setReceiveAmount("")
+                          }
+                        }}
+                        maxUnits={maxOrderOutput}
+                        swapRateUnits={SWAP_RATE_UNITS}
+                        onIconClick={() => setIsChainSelectorOpen(true)}
+                        overlayIcon={selectedChain.icon}
+                      />
+
+                      <CurrencyInput
+                        label="You receive"
+                        value={receiveAmount}
+                        currency={formatCurrency(receiveAmount)}
+                        currencyIcon="/USDT.svg"
+                        currencyName="USDT Tron"
+                        onChange={(val: string) => {
+                          // When the DESIRED Tron receive amount changes, calculate how much the user needs to send
+                          try {
+                            setReceiveAmount(val)
+
+                            if (val) {
+                              setIsReceiveUpdating(true)
+
+                              const receiveUnits = stringToUnits(val, DEFAULT_DECIMALS)
+                              // Add fee first, then convert back to the amount to send
+                              const receiveWithFee = receiveUnits + selectedChain.fixedFeeUsd
+                              const sendUnits = convertReceiveToSend(receiveWithFee, SWAP_RATE_UNITS)
+
+                              const newSendAmount = unitsToString(sendUnits, DEFAULT_DECIMALS)
+                              setSendAmount(newSendAmount)
+                            } else {
+                              setSendAmount("")
+                            }
+                          } catch (e) {
+                            setSendAmount("")
+                          }
+                        }}
+                        maxUnits={maxOrderOutput}
+                        swapRateUnits={SWAP_RATE_UNITS}
+                        overlayIcon="/chains/Tron.svg"
+                        isReceive={false}
+                      />
+                    </>
+                  )}
 
                   <div className="bg-white rounded-[22px] py-[14px] flex items-center">
                     <div className="flex-1 flex items-center pl-[16px]">
@@ -489,7 +582,9 @@ export default function Home() {
                                     transition={{ duration: 0.3 }}
                                     className="absolute left-0 top-0 h-full flex items-center text-[#B5B5B5] text-lg font-medium pointer-events-none select-none"
                                   >
-                                    {isResolvingEns && resolvingEnsName ? `Resolving ${resolvingEnsName}...` : (showErrorPlaceholder ? "Not an Ethereum address!" : "ENS or Address")}
+                                    {isResolvingEns && resolvingEnsName ? `Resolving ${resolvingEnsName}...` : (showErrorPlaceholder ? 
+                                      (transferMode === "send" ? "Not an Ethereum address!" : "Not a Tron address!") : 
+                                      (transferMode === "send" ? "ENS or Address" : "Tron Address"))}
                                   </motion.span>
                                 )}
                               </AnimatePresence>
@@ -528,7 +623,7 @@ export default function Home() {
                   </div>
 
                   <button 
-                    className={`w-full py-4 rounded-[22px] text-[24px] font-medium bg-black text-white transition-colors flex justify-center items-center ${
+                    className={`w-full py-4 rounded-[24px] text-[24px] font-medium bg-black text-white transition-colors flex justify-center items-center ${
                       (!addressBadge || !sendAmount || isSwapping) ? 'hover:bg-gray-300 hover:text-gray-500 cursor-not-allowed' : ''
                     }`}
                     onClick={handleSwap}
@@ -537,7 +632,7 @@ export default function Home() {
                     {isSwapping ? (
                       <Loader2 className="animate-spin w-6 h-6" />
                     ) : (
-                      "Untron!"
+                      "Untron"
                     )}
                   </button>
 
