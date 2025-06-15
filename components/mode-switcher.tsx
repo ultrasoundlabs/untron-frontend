@@ -17,7 +17,7 @@ export default function ModeSwitcher({ mode, onModeChange }: ModeSwitcherProps) 
         onClick={() => onModeChange("send")}
         className="relative text-base font-regular px-4 py-1.5 rounded-full"
         animate={{
-          color: mode === "send" ? "#ffffff" : "#8d8d8d"
+          color: mode === "send" ? "#000000" : "#8d8d8d"
         }}
         transition={{
           duration: 0.3,
@@ -28,7 +28,7 @@ export default function ModeSwitcher({ mode, onModeChange }: ModeSwitcherProps) 
         {mode === "send" && (
           <motion.span
             layoutId="mode-switcher-indicator"
-            className="absolute inset-0 bg-black rounded-full z-0"
+            className="absolute inset-0 bg-[#F3F2F2] rounded-full z-0"
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
           />
         )}
@@ -40,7 +40,7 @@ export default function ModeSwitcher({ mode, onModeChange }: ModeSwitcherProps) 
         onClick={() => onModeChange("receive")}
         className="relative text-base font-regular px-4 py-1.5 rounded-full"
         animate={{
-          color: mode === "receive" ? "#ffffff" : "#8d8d8d"
+          color: mode === "receive" ? "#000000" : "#8d8d8d"
         }}
         transition={{
           duration: 0.3,
@@ -51,7 +51,7 @@ export default function ModeSwitcher({ mode, onModeChange }: ModeSwitcherProps) 
         {mode === "receive" && (
           <motion.span
             layoutId="mode-switcher-indicator"
-            className="absolute inset-0 bg-black rounded-full z-0"
+            className="absolute inset-0 bg-[#F3F2F2] rounded-full z-0"
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
           />
         )}

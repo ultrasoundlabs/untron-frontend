@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, KeyboardEvent, ChangeEvent, useEffect } from "react"
+import { useState, KeyboardEvent, ChangeEvent, useEffect, useMemo } from "react"
 import { ChevronDown, Loader2 } from "lucide-react"
 import CurrencyInput from "@/components/currency-input"
 import FaqAccordion from "@/components/faq-accordion"
@@ -19,6 +19,7 @@ import { OUTPUT_CHAINS, OutputChain } from "@/config/chains"
 import ChainSelector from "@/components/chain-selector"
 import ChainButton from "@/components/chain-button"
 import ModeSwitcher, { TransferMode } from "@/components/mode-switcher"
+import { fetchUserTokens, UserToken } from "@/lib/fetchUserTokens"
 
 const isValidEVMAddress = (address: string): boolean => {
   // Ethereum address validation (0x followed by 40 hex characters)
@@ -88,7 +89,8 @@ export default function Home() {
   const [isChainSelectorOpen, setIsChainSelectorOpen] = useState(false)
   const [isReceiveUpdating, setIsReceiveUpdating] = useState(false)
   const [transferMode, setTransferMode] = useState<TransferMode>("send")
-  const [selectedToken, setSelectedToken] = useState<"USDT" | "USDC">("USDT")
+  const [selectedToken, setSelectedToken] = useState<string>("USDT")
+  const [userTokens, setUserTokens] = useState<UserToken[]>([])
 
   // Allowed chains in RECEIVE mode (ordered)
   const RECEIVE_CHAIN_IDS: number[] = [8453, 10, 130, 480, 42161]
@@ -386,10 +388,28 @@ export default function Home() {
     }
   }
 
+  // Fetch the user's tokens whenever they switch into receive mode & have an address connected
+  useEffect(() => {
+    if (transferMode === "receive" && connectedAddress) {
+      // @ts-ignore – wagmi provides address as `0x...` string which satisfies viem's Address
+      fetchUserTokens(connectedAddress as any).then(setUserTokens).catch(console.error)
+    }
+  }, [transferMode, connectedAddress])
+
+  // Convenience: resolve the icon for the currently selected token (fallback to USDT/USDC svg assets)
+  const selectedTokenIcon = useMemo(() => {
+    const match = userTokens.find((t) => t.symbol === selectedToken)
+    if (match) return match.icon
+    if (selectedToken === "USDT") return "/USDT.svg"
+    if (selectedToken === "USDC") return "/usdc.svg"
+    // Generic placeholder
+    return "/token-placeholder.svg"
+  }, [selectedToken, userTokens])
+
   return (
     <div className={`min-h-screen bg-background flex flex-col ${geist.className}`} >
       <Header />
-      <main className="flex-1 w-full mx-auto px-4 py-8 flex flex-col items-center">
+      <main className="flex-1 w-full mx-auto px-4 py-2 flex flex-col items-center">
         <div className="w-full max-w-[560px]">
           <AnimatePresence>
             {!isContentHidden && (
@@ -489,7 +509,7 @@ export default function Home() {
                         label="You send"
                         value={sendAmount}
                         currency={formatCurrency(sendAmount)}
-                        currencyIcon={selectedToken === "USDT" ? "/USDT.svg" : "/usdc.svg"}
+                        currencyIcon={selectedTokenIcon}
                         currencyName={selectedToken}
                         onChange={(val: string) => {
                           // When the amount the user WILL SEND (non-Tron) changes, calculate how much they will receive on Tron
@@ -641,7 +661,7 @@ export default function Home() {
                   </div>
 
                   <button 
-                    className={`w-full py-4 rounded-[24px] text-[24px] font-medium bg-black text-white transition-colors flex justify-center items-center ${
+                    className={`w-full py-4 rounded-[24px] text-2xl font-medium bg-black text-white transition-colors flex justify-center items-center ${
                       (!addressBadge || !sendAmount || isSwapping) ? 'hover:bg-gray-300 hover:text-gray-500 cursor-not-allowed' : ''
                     }`}
                     onClick={handleSwap}
@@ -735,6 +755,7 @@ export default function Home() {
         showTokenSelector={transferMode === "receive"}
         selectedToken={selectedToken}
         onSelectToken={setSelectedToken}
+        userTokens={userTokens}
       />
     </div>
   )

@@ -13,10 +13,10 @@ export default function Header() {
           <Image src="/logos/shortLogo.svg" alt="Untron Logo" width={58} height={58} className="mr-2 w-[58px] h-[58px]" />
         </Link>
         <nav className="hidden md:flex space-x-6">
-          <Link href="https://x.com/alexhooketh/status/1882052401869574527" target="_blank" rel="noopener noreferrer" className="text-foreground hover:text-accent-foreground transition-colors">
+          <Link href="https://x.com/alexhooketh/status/1882052401869574527" target="_blank" rel="noopener noreferrer" className="text-foreground hover:text-accent-foreground hover:underline transition-colors">
             Untron Yourself
           </Link>
-          <Link href="https://t.me/untronchat" target="_blank" rel="noopener noreferrer" className="text-foreground hover:text-accent-foreground transition-colors">
+          <Link href="https://t.me/untronchat" target="_blank" rel="noopener noreferrer" className="text-foreground hover:text-accent-foreground hover:underline transition-colors">
             Integrate
           </Link>
         </nav>
