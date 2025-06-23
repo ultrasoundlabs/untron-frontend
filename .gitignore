@@ -26,3 +26,5 @@ yarn-error.log*
 codefetch
 .next
 package-lock.json
+
+tsconfig.tsbuildinfo

@@ -9,7 +9,7 @@ import { Geist } from "next/font/google"
 import Header from "@/components/header"
 import Footer from "@/components/footer"
 import { useRouter } from "next/navigation"
-import { useAccount, useDisconnect, useConfig } from "wagmi"
+import { useAccount, useDisconnect, useConfig, useChainId, useSwitchChain } from "wagmi"
 import { API_BASE_URL, ApiInfoResponse } from "@/config/api"
 import { stringToUnits, unitsToString, DEFAULT_DECIMALS, convertSendToReceive, RATE_SCALE } from "@/lib/units"
 import { getEnsAddress } from '@wagmi/core'
@@ -116,6 +116,8 @@ export default function Home() {
   const [selectedToken, setSelectedToken] = useState<string>("USD₮0")
   const [userTokens, setUserTokens] = useState<UserToken[]>([])
   const { openConnectModal } = useConnectModal();
+  const chainId = useChainId();
+  const { switchChain } = useSwitchChain();
 
   // Allowed chains in RECEIVE mode (ordered)
   const RECEIVE_CHAIN_IDS: number[] = [8453, 10, 130, 480, 42161]
@@ -507,6 +509,23 @@ export default function Home() {
     }
     return maxOrderOutput;
   }, [transferMode, maxOrderOutput]);
+
+  // Automatically prompt the wallet to switch network when the user changes the "send from" chain in RECEIVE (into-Tron) mode
+  useEffect(() => {
+    if (
+      transferMode === "receive" &&
+      connectedAddress &&
+      selectedChain &&
+      chainId !== selectedChain.id &&
+      switchChain
+    ) {
+      try {
+        switchChain({ chainId: selectedChain.id })
+      } catch (err) {
+        console.error("Failed to switch chain:", err)
+      }
+    }
+  }, [transferMode, connectedAddress, selectedChain, chainId, switchChain]);
 
   return (
     <div className={`min-h-screen bg-background flex flex-col ${geist.className}`} >
