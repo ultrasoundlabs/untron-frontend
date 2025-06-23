@@ -12,7 +12,7 @@ interface ModeSwitcherProps {
 export default function ModeSwitcher({ mode, onModeChange }: ModeSwitcherProps) {
   return (
     <div className="bg-white rounded-[22px] py-1 px-1 flex items-center gap-2 mb-1 w-fit mx-left relative">
-      {/* Send Tron Button */}
+      {/* Untron Button */}
       <motion.button
         onClick={() => onModeChange("send")}
         className="relative text-base font-regular px-4 py-1.5 rounded-full"
@@ -32,10 +32,10 @@ export default function ModeSwitcher({ mode, onModeChange }: ModeSwitcherProps) 
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
           />
         )}
-        <span className="relative z-10">Send Tron</span>
+        <span className="relative z-10">Untron</span>
       </motion.button>
       
-      {/* Receive Tron Button */}
+      {/* Into Tron Button */}
       <motion.button
         onClick={() => onModeChange("receive")}
         className="relative text-base font-regular px-4 py-1.5 rounded-full"
@@ -55,7 +55,7 @@ export default function ModeSwitcher({ mode, onModeChange }: ModeSwitcherProps) 
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
           />
         )}
-        <span className="relative z-10">Receive Tron</span>
+        <span className="relative z-10">Into Tron</span>
       </motion.button>
     </div>
   )

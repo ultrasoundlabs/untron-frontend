@@ -1,6 +1,6 @@
 import { OUTPUT_CHAINS } from "@/config/chains"
 import { SUPPORTED_TOKENS } from "@/config/tokens"
-import { createPublicClient, http, Address, erc20Abi } from "viem"
+import { createPublicClient, http, Address, erc20Abi, formatUnits } from "viem"
 
 export interface UserToken {
   /** e.g. "USDC" */
@@ -18,11 +18,14 @@ export interface UserToken {
 // Minimal RPC mapping for the chains we care about. In production replace with your own endpoints.
 const RPC_ENDPOINTS: Record<number, string> = {
   8453: "https://mainnet.base.org", // Base
-  10: "https://mainnet.optimism.io", // OP Mainnet
+  10: "https://optimism-rpc.publicnode.com", // OP Mainnet
   42161: "https://arb1.arbitrum.io/rpc", // Arbitrum One
-  480: "https://rpc.worldchain.build", // World Chain (placeholder)
-  130: "https://rpc.unichain.world", // Unichain (placeholder)
+  480: "https://worldchain-mainnet.g.alchemy.com/public", // World Chain
+  130: "https://unichain-rpc.publicnode.com", // Unichain
 }
+
+/** Cache of viem public clients keyed by chainId to avoid redundant RPC connections */
+const publicClientCache = new Map<number, ReturnType<typeof createPublicClient>>()
 
 /**
  * Reads on-chain balances for the predefined USDT/USDC set using public RPC endpoints.
@@ -34,10 +37,14 @@ export async function fetchUserTokens(address: Address): Promise<UserToken[]> {
   const balances = await Promise.all(
     tokensToCheck.map(async (token) => {
       const rpc = RPC_ENDPOINTS[token.chainId]
-      if (!rpc || token.contract === "0x0000000000000000000000000000000000000000") return 0n
+      if (!rpc || token.contract === "0x0000000000000000000000000000000000000000") return null
 
       try {
-        const client = createPublicClient({ transport: http(rpc), chain: undefined })
+        let client = publicClientCache.get(token.chainId)
+        if (!client) {
+          client = createPublicClient({ transport: http(rpc), chain: undefined })
+          publicClientCache.set(token.chainId, client)
+        }
         const raw = await client.readContract({
           address: token.contract,
           abi: erc20Abi,
@@ -45,7 +52,8 @@ export async function fetchUserTokens(address: Address): Promise<UserToken[]> {
           args: [address],
         }) as bigint
         return raw > 0n ? { token, balance: raw } : null
-      } catch {
+      } catch (error) {
+        console.error(`Failed to fetch balance for ${token.symbol} on chain ${token.chainId}:`, error)
         return null
       }
     })
@@ -54,9 +62,10 @@ export async function fetchUserTokens(address: Address): Promise<UserToken[]> {
   const result = balances
     .filter((entry): entry is { token: typeof SUPPORTED_TOKENS[number]; balance: bigint } => !!entry)
     .map(({ token, balance }) => {
-      // convert balance to float string with decimals
-      const units = Number(balance) / 10 ** token.decimals
-      const price = token.symbol === "USDT" || token.symbol === "USDC" ? 1 : 0 // other tokens price unknown
+      // convert balance to decimal string without precision loss
+      const unitsStr = formatUnits(balance, token.decimals)
+      const units = Number(unitsStr) // parsed only after precise conversion
+      const price = token.symbol === "USD₮0" || token.symbol === "USDC" ? 1 : 0 // other tokens price unknown
       const balanceUsd = units * price
       return {
         symbol: token.symbol,

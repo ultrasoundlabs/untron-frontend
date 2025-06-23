@@ -1,6 +1,6 @@
 import { OutputChain } from "@/config/chains"
 import { motion, AnimatePresence } from "motion/react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { unitsToString, DEFAULT_DECIMALS } from "@/lib/units"
 import { UserToken } from "@/lib/fetchUserTokens"
 import { SUPPORTED_TOKENS } from "@/config/tokens"
@@ -35,7 +35,14 @@ export default function ChainSelector({
   onSelectToken,
   showOtherAvailable = true,
 }: ChainSelectorProps) {
-  const [internalToken, setInternalToken] = useState<string>(controlledToken ?? "USDT")
+  const [internalToken, setInternalToken] = useState<string>(controlledToken ?? "USD₮0")
+  // Keep internal state in sync with the controlled prop
+  useEffect(() => {
+    // Only update when a new controlledToken value is provided
+    if (controlledToken !== undefined && controlledToken !== internalToken) {
+      setInternalToken(controlledToken)
+    }
+  }, [controlledToken])
   // The token that is highlighted as selected
   const selectedToken = controlledToken ?? internalToken
 
