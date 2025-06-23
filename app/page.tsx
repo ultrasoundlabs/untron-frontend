@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, KeyboardEvent, ChangeEvent, useEffect } from "react"
+import { useState, KeyboardEvent, ChangeEvent, useEffect, useMemo } from "react"
 import { ChevronDown, Loader2 } from "lucide-react"
 import CurrencyInput from "@/components/currency-input"
 import FaqAccordion from "@/components/faq-accordion"
@@ -9,21 +9,35 @@ import { Geist } from "next/font/google"
 import Header from "@/components/header"
 import Footer from "@/components/footer"
 import { useRouter } from "next/navigation"
-import { useAccount, useDisconnect, useConfig } from "wagmi"
-import { API_BASE_URL, ApiInfoResponse, SWAP_RATE_UNITS } from "@/config/api"
-import { stringToUnits, unitsToString, DEFAULT_DECIMALS, convertSendToReceive, convertReceiveToSend } from "@/lib/units"
+import { useAccount, useDisconnect, useConfig, useChainId, useSwitchChain } from "wagmi"
+import { API_BASE_URL, ApiInfoResponse } from "@/config/api"
+import { stringToUnits, unitsToString, DEFAULT_DECIMALS, convertSendToReceive, RATE_SCALE } from "@/lib/units"
 import { getEnsAddress } from '@wagmi/core'
 import { normalize } from 'viem/ens'
 import { getAddress } from 'viem'
 import { OUTPUT_CHAINS, OutputChain } from "@/config/chains"
 import ChainSelector from "@/components/chain-selector"
 import ChainButton from "@/components/chain-button"
+import ModeSwitcher, { TransferMode } from "@/components/mode-switcher"
+import { fetchUserTokens, UserToken } from "@/lib/fetchUserTokens"
+import { useConnectModal } from "@rainbow-me/rainbowkit"
+import { readContract, signTypedData } from "@wagmi/core"
+import { toast } from "sonner"
+import { SUPPORTED_TOKENS } from "@/config/tokens"
+import { SuccessPopup } from "@/components/untron/success-popup"
 
 const isValidEVMAddress = (address: string): boolean => {
   // Ethereum address validation (0x followed by 40 hex characters)
   const ethRegex = /^0x[a-fA-F0-9]{40}$/
   
   return ethRegex.test(address)
+}
+
+const isValidTronAddress = (address: string): boolean => {
+  // Tron base58 address validation – starts with "T" and is 34 chars in total
+  // This is a simplified check that covers the vast majority of main-net & test-net addresses.
+  const tronRegex = /^T[a-zA-Z0-9]{33}$/
+  return tronRegex.test(address)
 }
 
 const isValidDomainName = (name: string): boolean => {
@@ -62,6 +76,88 @@ const geist = Geist({
   weight: ["300", "400", "500", "600"],
 })
 
+// Fee configuration
+const FROM_TRON_FEE_BPS = 3n; // 3 basis points (0.03%)
+const INTO_TRON_STATIC_FEE: bigint = 2_000_000n; // 2 USDT/USDC (6-decimals)
+const INTO_TRON_MAX_AMOUNT: bigint = 1_000_000_000n; // 1,000 USDT/USDC (6-decimals)
+
+// Rate units after 3 bps fee: 1e6 * (1 - feeBps/10000)
+const FROM_TRON_RATE_UNITS: bigint = RATE_SCALE - (RATE_SCALE * FROM_TRON_FEE_BPS) / 10000n;
+
+// Helper: convert desired receiveUnits back to required sendUnits using swap rate
+const computeSendUnitsFromReceiveFromTron = (receiveUnits: bigint): bigint => {
+  // send = ceil(receive * 10000 / (10000 - feeBps))
+  const numerator = receiveUnits * 10000n;
+  const denominator = 10000n - FROM_TRON_FEE_BPS;
+  return (numerator + denominator - 1n) / denominator;
+};
+
+// Minimal ABI fragments to fetch token metadata required for the EIP-712 domain
+const ERC20_NAME_ABI = [{
+  constant: true,
+  inputs: [],
+  name: "name",
+  outputs: [{ name: "", type: "string" }],
+  stateMutability: "view",
+  type: "function",
+}] as const
+
+const ERC20_VERSION_ABI = [{
+  constant: true,
+  inputs: [],
+  name: "version",
+  outputs: [{ name: "", type: "string" }],
+  stateMutability: "view",
+  type: "function",
+}] as const
+
+// Helper to generate a random 32-byte nonce returned as 0x-prefixed hex
+const randomHex32 = (): `0x${string}` => {
+  const bytes = new Uint8Array(32)
+  crypto.getRandomValues(bytes)
+  return `0x${Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("")}` as `0x${string}`
+}
+
+// Helper to safely fetch token metadata (falls back to sensible defaults)
+const fetchTokenMetadata = async (
+  config: ReturnType<typeof useConfig>,
+  chainId: number,
+  tokenAddress: `0x${string}`,
+  symbol: string,
+): Promise<{ name: string; version: string }> => {
+  try {
+    const name: string = (await readContract(config, {
+      chainId,
+      address: tokenAddress,
+      abi: ERC20_NAME_ABI as any,
+      functionName: "name",
+      args: [],
+    })) as string
+
+    // Attempt to fetch version – many tokens (e.g. USDT) do not implement it.
+    let version = "1"
+    try {
+      version = (await readContract(config, {
+        chainId,
+        address: tokenAddress,
+        abi: ERC20_VERSION_ABI as any,
+        functionName: "version",
+        args: [],
+      })) as string
+    } catch {
+      // ignore – keep default "1"
+    }
+
+    return { name, version }
+  } catch {
+    // Fallback values for the two supported symbols
+    if (symbol === "USDC") return { name: "USD Coin", version: "2" }
+    return { name: "Tether USD", version: "3" }
+  }
+}
+
 export default function Home() {
   const [inputValue, setInputValue] = useState("")
   const [addressBadge, setAddressBadge] = useState<string | null>(null)
@@ -76,6 +172,8 @@ export default function Home() {
   const [isResolvingEns, setIsResolvingEns] = useState(false)
   const [resolvingEnsName, setResolvingEnsName] = useState("")
   const [isContentHidden, setIsContentHidden] = useState(false)
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false)
+  const [successTxHash, setSuccessTxHash] = useState<string | undefined>(undefined)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [showWalletLink, setShowWalletLink] = useState(true)
   const [userClearedAddress, setUserClearedAddress] = useState(false)
@@ -86,6 +184,27 @@ export default function Home() {
   const [selectedChain, setSelectedChain] = useState<OutputChain>(OUTPUT_CHAINS[0])
   const [isChainSelectorOpen, setIsChainSelectorOpen] = useState(false)
   const [isReceiveUpdating, setIsReceiveUpdating] = useState(false)
+  const [transferMode, setTransferMode] = useState<TransferMode>("send")
+  const [selectedToken, setSelectedToken] = useState<string>("USD₮0")
+  const [userTokens, setUserTokens] = useState<UserToken[]>([])
+  const { openConnectModal } = useConnectModal();
+  const chainId = useChainId();
+  const { switchChain } = useSwitchChain();
+  const [amountExceedsBalance, setAmountExceedsBalance] = useState(false)
+  const [outputBelowZero, setOutputBelowZero] = useState(false)
+
+  // Allowed chains in RECEIVE mode (ordered)
+  const RECEIVE_CHAIN_IDS: number[] = [8453, 10, 130, 480, 42161]
+  const receiveChains = OUTPUT_CHAINS.filter((c) => RECEIVE_CHAIN_IDS.includes(c.id)).sort(
+    (a, b) => RECEIVE_CHAIN_IDS.indexOf(a.id) - RECEIVE_CHAIN_IDS.indexOf(b.id)
+  )
+
+  // Keep selectedChain valid when switching to receive mode
+  useEffect(() => {
+    if (transferMode === "receive" && !RECEIVE_CHAIN_IDS.includes(selectedChain.id)) {
+      setSelectedChain(receiveChains[0])
+    }
+  }, [transferMode])
 
   // Fetch API info on component mount
   useEffect(() => {
@@ -101,38 +220,40 @@ export default function Home() {
     fetchApiInfo()
   }, [])
 
-  // Update receive amount when send amount changes (no floats)
+  // Update receive amount whenever sendAmount changes
   useEffect(() => {
     if (isReceiveUpdating) {
-      setIsReceiveUpdating(false)
-      return
+      setIsReceiveUpdating(false);
+      return;
     }
 
-    if (sendAmount) {
-      try {
-        const sendUnits = stringToUnits(sendAmount, DEFAULT_DECIMALS)
-        let receiveUnits = convertSendToReceive(sendUnits, SWAP_RATE_UNITS)
-        
-        // Subtract fixed fee
-        const fee = selectedChain.fixedFeeUsd
-        if (receiveUnits > fee) {
-          receiveUnits -= fee
-        } else {
-          receiveUnits = 0n
-        }
+    if (!sendAmount) {
+      setReceiveAmount("");
+      return;
+    }
 
-        setReceiveAmount(unitsToString(receiveUnits, DEFAULT_DECIMALS))
-      } catch (e) {
-        setReceiveAmount("")
+    try {
+      const sendUnits = stringToUnits(sendAmount, DEFAULT_DECIMALS);
+      let receiveUnits: bigint;
+      if (transferMode === "send") {
+        // From Tron – apply rate (0.9997)
+        receiveUnits = convertSendToReceive(sendUnits, FROM_TRON_RATE_UNITS);
+      } else {
+        // Into Tron – start with 1:1 rate
+        receiveUnits = sendUnits;
+        // Apply flat 2-token fee
+        receiveUnits = receiveUnits > INTO_TRON_STATIC_FEE ? receiveUnits - INTO_TRON_STATIC_FEE : 0n;
       }
-    } else {
-      setReceiveAmount("")
-    }
-  }, [sendAmount, selectedChain])
 
-  // Set connected wallet address when it changes
+      setReceiveAmount(unitsToString(receiveUnits, DEFAULT_DECIMALS));
+    } catch {
+      setReceiveAmount("");
+    }
+  }, [sendAmount, selectedChain, transferMode]);
+
+  // Set connected wallet address when it changes (only in send mode)
   useEffect(() => {
-    if (connectedAddress && !addressBadge && !isDisconnecting && !userClearedAddress) {
+    if (connectedAddress && !addressBadge && !isDisconnecting && !userClearedAddress && transferMode === "send") {
       try {
         const checksummedAddress = getAddress(connectedAddress);
         setAddressBadge(checksummedAddress);
@@ -143,7 +264,7 @@ export default function Home() {
         setAddressBadge(connectedAddress);
       }
     }
-  }, [connectedAddress, addressBadge, isDisconnecting, userClearedAddress])
+  }, [connectedAddress, addressBadge, isDisconnecting, userClearedAddress, transferMode])
 
   // Reset userClearedAddress when wallet is disconnected
   useEffect(() => {
@@ -161,36 +282,43 @@ export default function Home() {
       return;
     }
 
-    if (isValidEVMAddress(trimmedValue)) {
-      try {
-        const checksummedAddress = getAddress(trimmedValue);
-        setAddressBadge(checksummedAddress);
-        setUserClearedAddress(false);
-        setInputValue(""); // Clear input, leading to badge display
-      } catch (error) {
-        console.error("Failed to checksum address:", error);
-        // Fallback or error display if needed
-        setAddressBadge(trimmedValue); // Or handle error appropriately
+    if (transferMode === "send") {
+      // SEND ➜ requires an EVM address or ENS
+      if (isValidEVMAddress(trimmedValue)) {
+        try {
+          const checksummedAddress = getAddress(trimmedValue);
+          setAddressBadge(checksummedAddress);
+          setUserClearedAddress(false);
+          setInputValue("");
+        } catch (error) {
+          console.error("Failed to checksum address:", error);
+          setAddressBadge(trimmedValue);
+          setUserClearedAddress(false);
+          setInputValue("");
+        }
+      } else if (isPotentialEnsName(trimmedValue)) {
+        setIsResolvingEns(true);
+        setResolvingEnsName(trimmedValue);
+        resolveEnsAddress(trimmedValue);
+      }
+    } else {
+      // RECEIVE ➜ expects a Tron address
+      if (isValidTronAddress(trimmedValue)) {
+        setAddressBadge(trimmedValue);
         setUserClearedAddress(false);
         setInputValue("");
       }
-    } else if (isPotentialEnsName(trimmedValue)) {
-      // Not an EVM address, but could be an ENS name.
-      // isResolvingEns is already false due to the check at the effect's start.
-      setIsResolvingEns(true);
-      setResolvingEnsName(trimmedValue);
-      resolveEnsAddress(trimmedValue); // This will also clear inputValue
     }
-  }, [inputValue, isResolvingEns]); // Dependencies updated
+  }, [inputValue, isResolvingEns, transferMode]);
 
   // Hide Tron wallet link if input has value or badge is set
   useEffect(() => {
-    if (inputValue.trim() !== "" || addressBadge || isResolvingEns) {
+    if (inputValue.trim() !== "" || addressBadge || isResolvingEns || connectedAddress) {
       setShowWalletLink(false)
     } else {
       setShowWalletLink(true)
     }
-  }, [inputValue, addressBadge, isResolvingEns])
+  }, [inputValue, addressBadge, isResolvingEns, connectedAddress])
 
   const resolveEnsAddress = async (ensName: string) => {
     try {
@@ -236,63 +364,89 @@ export default function Home() {
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && inputValue.trim()) {
       const trimmedValue = inputValue.trim()
-      if (isValidEVMAddress(trimmedValue)) {
-        try {
-          const checksummedAddress = getAddress(trimmedValue);
-          setAddressBadge(checksummedAddress);
-          setUserClearedAddress(false);
-          setInputValue("");
-        } catch (error) {
-          console.error("Failed to checksum address on Enter:", error);
-          setAddressBadge(trimmedValue); // Fallback
-          setUserClearedAddress(false);
-          setInputValue("");
-        }
-      } else if (isValidDomainName(trimmedValue)) {
-        // ENS resolution is now handled by useEffect, but we can still trigger it on Enter if needed
-        // or if the user confirms an ENS name they typed.
-        // For now, we'll let the useEffect handle it. If the user presses Enter
-        // on an ENS-like name and it hasn't resolved yet, it will be picked up by the useEffect.
-        // If it's already resolving, this Enter press won't do much harm.
-        // Alternatively, if we want Enter to specifically *confirm* an ENS name even if it's auto-resolving:
-        if (!isResolvingEns) { // Only trigger if not already resolving
+
+      if (transferMode === "send") {
+        if (isValidEVMAddress(trimmedValue)) {
+          try {
+            const checksummedAddress = getAddress(trimmedValue)
+            setAddressBadge(checksummedAddress)
+            setUserClearedAddress(false)
+            setInputValue("")
+          } catch (error) {
+            console.error("Failed to checksum address on Enter:", error)
+            setAddressBadge(trimmedValue)
+            setUserClearedAddress(false)
+            setInputValue("")
+          }
+        } else if (isValidDomainName(trimmedValue)) {
+          if (!isResolvingEns) {
             setIsResolvingEns(true)
             setResolvingEnsName(trimmedValue)
             resolveEnsAddress(trimmedValue)
+          }
+        } else {
+          setIsPasteShaking(true)
+          setShowErrorPlaceholder(true)
+          setTimeout(() => {
+            setIsPasteShaking(false)
+            setShowErrorPlaceholder(false)
+          }, 3000)
         }
       } else {
-        setIsPasteShaking(true)
-        setShowErrorPlaceholder(true)
-        setTimeout(() => {
-          setIsPasteShaking(false)
-          setShowErrorPlaceholder(false)
-        }, 3000)
+        // RECEIVE mode
+        if (isValidTronAddress(trimmedValue)) {
+          setAddressBadge(trimmedValue)
+          setUserClearedAddress(false)
+          setInputValue("")
+        } else {
+          setIsPasteShaking(true)
+          setShowErrorPlaceholder(true)
+          setTimeout(() => {
+            setIsPasteShaking(false)
+            setShowErrorPlaceholder(false)
+          }, 3000)
+        }
       }
     }
   }
 
   const handlePaste = () => {
-    navigator.clipboard.readText().then((text) => {
-      if (text) {
-        if (isValidEVMAddress(text)) {
-          try {
-            const checksummedAddress = getAddress(text);
-            setAddressBadge(checksummedAddress);
-            setUserClearedAddress(false);
-            setInputValue("");
-          } catch (error) {
-            console.error("Failed to checksum pasted address:", error);
-            setAddressBadge(text); // Fallback
-            setUserClearedAddress(false);
-            setInputValue("");
-          }
-        } else {
-          // Trigger ENS resolution on paste if it looks like an ENS name
-          if (isValidDomainName(text) && !isResolvingEns) {
+    navigator.clipboard.readText()
+      .then((text) => {
+        if (!text) return
+
+        if (transferMode === "send") {
+          if (isValidEVMAddress(text)) {
+            try {
+              const checksummedAddress = getAddress(text)
+              setAddressBadge(checksummedAddress)
+              setUserClearedAddress(false)
+              setInputValue("")
+            } catch (error) {
+              console.error("Failed to checksum pasted address:", error)
+              setAddressBadge(text)
+              setUserClearedAddress(false)
+              setInputValue("")
+            }
+          } else if (isValidDomainName(text) && !isResolvingEns) {
             setIsResolvingEns(true)
             setResolvingEnsName(text)
             resolveEnsAddress(text)
-          } else if (!isValidDomainName(text)) { // If it's not an ENS and not a valid address
+          } else if (!isValidDomainName(text)) {
+            setIsPasteShaking(true)
+            setShowErrorPlaceholder(true)
+            setTimeout(() => {
+              setIsPasteShaking(false)
+              setShowErrorPlaceholder(false)
+            }, 3000)
+          }
+        } else {
+          // RECEIVE mode (Tron)
+          if (isValidTronAddress(text)) {
+            setAddressBadge(text)
+            setUserClearedAddress(false)
+            setInputValue("")
+          } else {
             setIsPasteShaking(true)
             setShowErrorPlaceholder(true)
             setTimeout(() => {
@@ -301,10 +455,10 @@ export default function Home() {
             }, 3000)
           }
         }
-      }
-    }).catch(err => {
-      console.error("Failed to read clipboard: ", err)
-    })
+      })
+      .catch((err) => {
+        console.error("Failed to read clipboard: ", err)
+      })
   }
 
   const clearBadge = () => {
@@ -320,7 +474,8 @@ export default function Home() {
     }, 500)
   }
 
-  const handleSwap = async () => {
+  // Business logic – FROM Tron to another chain ("Untron" flow)
+  const handleSwapFromTron = async () => {
     if (!addressBadge || !sendAmount || isSwapping) return
 
     setIsSwapping(true)
@@ -330,19 +485,21 @@ export default function Home() {
       // Convert the amount the user entered to the smallest units (6 decimals)
       const fromUnits = stringToUnits(sendAmount, DEFAULT_DECIMALS)
 
+      const orderPayload = {
+        // From Tron to selected L2 chain
+        toCoin: "usdt",
+        toChain: selectedChain.id,
+        fromAmount: Number(fromUnits.toString()),
+        rate: Number(FROM_TRON_RATE_UNITS.toString()),
+        beneficiary: addressBadge,
+      }
+
       const response = await fetch("https://untron.finance/api/v2-public/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          toCoin: "usdt",
-          toChain: selectedChain.id,
-          fromAmount: Number(fromUnits.toString()),
-          rate: Number(SWAP_RATE_UNITS.toString()),
-          beneficiary: addressBadge,
-        }),
+        body: JSON.stringify(orderPayload),
       })
 
-      // If the response is not OK, treat it as an error right away
       if (!response.ok) {
         throw new Error(`Unexpected status code ${response.status}`)
       }
@@ -364,16 +521,284 @@ export default function Home() {
     } catch (error) {
       console.error("Order creation failed:", error)
       setErrorMessage("You've made too many orders. Please try again later.")
-      // Re-enable UI so the user can try again
       setIsSwapping(false)
       setShowArrowAndFaq(true)
     }
   }
 
+  // Business logic – INTO Tron (L2 ➜ Tron). Will require signature and a different API.
+  const handleSwapIntoTron = async () => {
+    if (!addressBadge || !sendAmount || isSwapping || !connectedAddress) return
+
+    setIsSwapping(true)
+    setErrorMessage(null)
+
+    try {
+      // 1. Convert amount → smallest units
+      const sendUnits = stringToUnits(sendAmount, DEFAULT_DECIMALS)
+
+      // 2. Request dedicated receiver address bound to the Tron beneficiary
+      const intentResp = await fetch("https://untron.finance/api/intents/receivers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tron_address: addressBadge }),
+      })
+
+      if (!intentResp.ok) {
+        throw new Error(`Intents API returned status ${intentResp.status}`)
+      }
+
+      const intentJson: { success: boolean; receiver_address: string | null; error?: string } = await intentResp.json()
+      if (!intentJson.success || !intentJson.receiver_address) {
+        throw new Error(intentJson.error || "Failed to obtain receiver address")
+      }
+
+      const receiverAddress = intentJson.receiver_address as `0x${string}`
+
+      // 3. Prepare typed data for ERC-3009 signature
+      const tokenInfo = SUPPORTED_TOKENS.find(
+        (t) => t.chainId === selectedChain.id && t.symbol === selectedToken,
+      )
+
+      if (!tokenInfo) {
+        throw new Error("Selected token is not supported on chosen chain")
+      }
+
+      const tokenAddress = tokenInfo.contract as `0x${string}`
+
+      // Fetch token name & version (with fallbacks)
+      const { name: tokenName, version: tokenVersion } = await fetchTokenMetadata(
+        config,
+        selectedChain.id,
+        tokenAddress,
+        tokenInfo.symbol,
+      )
+
+      const validAfter = 0n
+      const validBefore = BigInt(Math.floor(Date.now() / 1000) + 3600) // 1h
+      const nonce = randomHex32()
+
+      const domain = {
+        name: tokenName,
+        version: tokenVersion,
+        chainId: BigInt(selectedChain.id),
+        verifyingContract: tokenAddress,
+      } as const
+
+      const types = {
+        EIP712Domain: [
+          { name: "name", type: "string" },
+          { name: "version", type: "string" },
+          { name: "chainId", type: "uint256" },
+          { name: "verifyingContract", type: "address" },
+        ],
+        TransferWithAuthorization: [
+          { name: "from", type: "address" },
+          { name: "to", type: "address" },
+          { name: "value", type: "uint256" },
+          { name: "validAfter", type: "uint256" },
+          { name: "validBefore", type: "uint256" },
+          { name: "nonce", type: "bytes32" },
+        ],
+      } as const
+
+      const message = {
+        from: connectedAddress,
+        to: receiverAddress,
+        value: sendUnits,
+        validAfter,
+        validBefore,
+        nonce,
+      } as const
+
+      // 4. Request signature from the wallet
+      const signature = await signTypedData(config, {
+        account: connectedAddress as `0x${string}`,
+        domain,
+        primaryType: "TransferWithAuthorization",
+        types,
+        message,
+      })
+
+      // Split signature into r / s / v
+      const sig = signature.slice(2)
+      const r = `0x${sig.slice(0, 64)}`
+      const s = `0x${sig.slice(64, 128)}`
+      const v = parseInt(sig.slice(128, 130), 16)
+
+      // 5. Relay the signed authorization
+      const relayBody = {
+        chainId: selectedChain.id,
+        token: tokenAddress,
+        from: connectedAddress,
+        to: receiverAddress,
+        value: Number(sendUnits.toString()),
+        validAfter: Number(validAfter),
+        validBefore: Number(validBefore),
+        nonce,
+        v,
+        r,
+        s,
+      }
+
+      const relayResp = await fetch("https://untron.finance/api/gasless/relay3009", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(relayBody),
+      })
+
+      if (!relayResp.ok) {
+        const text = await relayResp.text()
+        throw new Error(`Relayer error: ${text}`)
+      }
+
+      const relayJson: { txHash: string } = await relayResp.json()
+      console.log("Relayer tx hash:", relayJson.txHash)
+
+      // 6. Wait 3 seconds then show success popup with Tronscan link
+      setTimeout(() => {
+        setSuccessTxHash(relayJson.txHash)
+        setShowSuccessPopup(true)
+      }, 3000)
+
+      // Clear UI
+      setSendAmount("")
+      setReceiveAmount("")
+      setAddressBadge(null)
+    } catch (error: any) {
+      console.error("L2 → Tron flow failed:", error)
+      setErrorMessage(error?.message || "Something went wrong. Please try again.")
+    } finally {
+      setIsSwapping(false)
+    }
+  }
+
+  // Fetch the user's tokens whenever they switch into receive mode & have an address connected
+  useEffect(() => {
+    if (transferMode === "receive" && connectedAddress) {
+      // @ts-ignore – wagmi provides address as `0x...` string which satisfies viem's Address
+      fetchUserTokens(connectedAddress as any).then(setUserTokens).catch(console.error)
+    }
+  }, [transferMode, connectedAddress])
+
+  // Convenience: resolve the icon for the currently selected token (fallback to USD₮0/USDC svg assets)
+  const selectedTokenIcon = useMemo(() => {
+    const match = userTokens.find((t) => t.symbol === selectedToken)
+    if (match) return match.icon
+    if (selectedToken === "USD₮0") return "/USDT.svg"
+    if (selectedToken === "USDC") return "/usdc.svg"
+    // Generic placeholder
+    return "/token-placeholder.svg"
+  }, [selectedToken, userTokens])
+
+  // Get the balance for the selected token
+  const selectedTokenBalance = useMemo(() => {
+    const match = userTokens.find((t) => t.symbol === selectedToken && t.chainId === selectedChain.id)
+    return match ? match.balanceFormatted : undefined
+  }, [selectedToken, userTokens, selectedChain])
+
+  // Handle max button click
+  const handleMaxClick = () => {
+    if (selectedTokenBalance) {
+      setSendAmount(selectedTokenBalance)
+      // Calculate corresponding receive amount
+      try {
+        const sendUnits = stringToUnits(selectedTokenBalance, DEFAULT_DECIMALS)
+        const receiveUnits = sendUnits
+        const receiveAfterFee = receiveUnits > INTO_TRON_STATIC_FEE ? receiveUnits - INTO_TRON_STATIC_FEE : 0n
+        const newReceiveAmount = unitsToString(receiveAfterFee, DEFAULT_DECIMALS)
+        setReceiveAmount(newReceiveAmount)
+        setIsReceiveUpdating(true)
+        
+        // Reset validation since we're setting to max balance
+        setAmountExceedsBalance(false)
+        setOutputBelowZero(receiveAfterFee === 0n && sendUnits > 0n)
+      } catch (e) {
+        console.error('Error calculating receive amount:', e)
+      }
+    }
+  }
+
+  const buttonDisabled = useMemo(() => {
+    if (transferMode === "receive" && !connectedAddress) {
+      return false; // Connect Wallet button should always be clickable
+    }
+    if (transferMode === "receive" && (amountExceedsBalance || outputBelowZero)) {
+      return true; // Disable button if amount validation fails
+    }
+    return !addressBadge || !sendAmount || isSwapping;
+  }, [transferMode, connectedAddress, addressBadge, sendAmount, isSwapping, amountExceedsBalance, outputBelowZero]);
+
+  const handleButtonClick = () => {
+    if (transferMode === "receive" && !connectedAddress) {
+      if (openConnectModal) {
+        openConnectModal();
+      }
+      return;
+    }
+    if (transferMode === "send") {
+      handleSwapFromTron();
+    } else {
+      handleSwapIntoTron();
+    }
+  };
+
+  // Determine mode-specific max liquidity cap
+  const effectiveMaxUnits = useMemo(() => {
+    if (transferMode === "receive") {
+      return maxOrderOutput > INTO_TRON_MAX_AMOUNT ? INTO_TRON_MAX_AMOUNT : maxOrderOutput;
+    }
+    return maxOrderOutput;
+  }, [transferMode, maxOrderOutput]);
+
+  // Automatically prompt the wallet to switch network when the user changes the "send from" chain in RECEIVE (into-Tron) mode
+  useEffect(() => {
+    if (
+      transferMode === "receive" &&
+      connectedAddress &&
+      selectedChain &&
+      chainId !== selectedChain.id &&
+      switchChain
+    ) {
+      try {
+        switchChain({ chainId: selectedChain.id })
+      } catch (err) {
+        console.error("Failed to switch chain:", err)
+      }
+    }
+  }, [transferMode, connectedAddress, selectedChain, chainId, switchChain]);
+
+  // Recalculate validation when amount, token, or chain changes
+  useEffect(() => {
+    if (transferMode === "receive" && sendAmount) {
+      try {
+        const sendUnits = stringToUnits(sendAmount, DEFAULT_DECIMALS)
+        
+        // Check if amount exceeds balance (treat undefined balance as 0)
+        const balanceUnits = selectedTokenBalance
+          ? stringToUnits(selectedTokenBalance, DEFAULT_DECIMALS)
+          : 0n
+        setAmountExceedsBalance(sendUnits > balanceUnits)
+        
+        // Check if output is below zero
+        const receiveUnits = sendUnits
+        const receiveAfterFee =
+          receiveUnits > INTO_TRON_STATIC_FEE ? receiveUnits - INTO_TRON_STATIC_FEE : 0n
+        setOutputBelowZero(receiveAfterFee === 0n && sendUnits > 0n)
+      } catch (e) {
+        setAmountExceedsBalance(false)
+        setOutputBelowZero(false)
+      }
+    } else {
+      setAmountExceedsBalance(false)
+      setOutputBelowZero(false)
+    }
+  }, [sendAmount, selectedToken, selectedChain, selectedTokenBalance, transferMode]);
+
   return (
     <div className={`min-h-screen bg-background flex flex-col ${geist.className}`} >
       <Header />
-      <main className="flex-1 w-full mx-auto px-4 py-8 flex flex-col items-center">
+      <main className="flex-1 w-full mx-auto px-4 py-2 flex flex-col items-center">
         <div className="w-full max-w-[560px]">
           <AnimatePresence>
             {!isContentHidden && (
@@ -398,54 +823,152 @@ export default function Home() {
                   <h1 className="text-2xl font-medium text-[#8d8d8d]">Let's transfer now.</h1>
                 </div>
 
+                <ModeSwitcher 
+                  mode={transferMode} 
+                  onModeChange={(mode) => {
+                    setTransferMode(mode)
+                    // Clear amounts when switching modes
+                    setSendAmount("")
+                    setReceiveAmount("")
+                    // Clear address field as different modes require different address types
+                    setAddressBadge(null)
+                    setInputValue("")
+                    setUserClearedAddress(false)
+                    // Reset token to USDT when switching to send mode
+                    if (mode === "send") {
+                      setSelectedToken("USD₮0")
+                    }
+                  }}
+                />
+
                 <div className="space-y-4">
-                  <CurrencyInput
-                    label="You send"
-                    value={sendAmount}
-                    currency={formatCurrency(sendAmount)}
-                    currencyIcon="/USDT.svg"
-                    currencyName="USDT Tron"
-                    onChange={(val: string) => setSendAmount(val)}
-                    maxUnits={maxOrderOutput}
-                    swapRateUnits={SWAP_RATE_UNITS}
-                    overlayIcon="/chains/Tron.svg"
-                  />
+                  {transferMode === "send" ? (
+                    <>
+                      <CurrencyInput
+                        label="You send"
+                        value={sendAmount}
+                        currency={formatCurrency(sendAmount)}
+                        currencyIcon="/USDT.svg"
+                        currencyName="USDT Tron"
+                        onChange={(val: string) => setSendAmount(val)}
+                        maxUnits={effectiveMaxUnits}
+                        swapRateUnits={FROM_TRON_RATE_UNITS}
+                        overlayIcon="/chains/Tron.svg"
+                      />
 
-                  <CurrencyInput
-                    label="You receive"
-                    value={receiveAmount}
-                    currency={formatCurrency(receiveAmount)}
-                    currencyIcon="/USDT.svg"
-                    currencyName="USDT"
-                    onChange={(val: string) => {
-                      // When receive value changes, we need to calculate and update send amount
-                      try {
-                        setReceiveAmount(val);
-                        
-                        if (val) {
-                          setIsReceiveUpdating(true);
-                          
-                          const receiveUnits = stringToUnits(val, DEFAULT_DECIMALS);
-                          // Add back the fee for accurate calculation
-                          const receiveWithFee = receiveUnits + selectedChain.fixedFeeUsd;
-                          // Convert to send amount
-                          const sendUnits = convertReceiveToSend(receiveWithFee, SWAP_RATE_UNITS);
+                      <CurrencyInput
+                        label="You receive"
+                        value={receiveAmount}
+                        currency={formatCurrency(receiveAmount)}
+                        currencyIcon="/USDT.svg"
+                        currencyName="USDT"
+                        onChange={(val: string) => {
+                          // When receive value changes, we need to calculate and update send amount
+                          try {
+                            setReceiveAmount(val);
+                            
+                            if (val) {
+                              setIsReceiveUpdating(true);
+                              
+                              const receiveUnits = stringToUnits(val, DEFAULT_DECIMALS);
+                              // Calculate required send amount considering 3 bps fee
+                              const sendUnits = computeSendUnitsFromReceiveFromTron(receiveUnits);
 
-                          const newSendAmount = unitsToString(sendUnits, DEFAULT_DECIMALS);
-                          setSendAmount(newSendAmount);
-                        } else {
-                          setSendAmount("");
-                        }
-                      } catch (e) {
-                        setSendAmount("");
-                      }
-                    }}
-                    isReceive={false}
-                    maxUnits={maxOrderOutput}
-                    swapRateUnits={SWAP_RATE_UNITS}
-                    onIconClick={() => setIsChainSelectorOpen(true)}
-                    overlayIcon={selectedChain.icon}
-                  />
+                              const newSendAmount = unitsToString(sendUnits, DEFAULT_DECIMALS);
+                              setSendAmount(newSendAmount);
+                            } else {
+                              setSendAmount("");
+                            }
+                          } catch (e) {
+                            setSendAmount("");
+                          }
+                        }}
+                        isReceive={false}
+                        maxUnits={effectiveMaxUnits}
+                        swapRateUnits={FROM_TRON_RATE_UNITS}
+                        onIconClick={() => setIsChainSelectorOpen(true)}
+                        overlayIcon={selectedChain.icon}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <CurrencyInput
+                        label="You send"
+                        value={sendAmount}
+                        currency={formatCurrency(sendAmount)}
+                        currencyIcon={selectedTokenIcon}
+                        currencyName={selectedToken}
+                        onChange={(val: string) => {
+                          // When the amount the user WILL SEND (non-Tron) changes, calculate how much they will receive on Tron
+                          try {
+                            setSendAmount(val)
+
+                            if (val) {
+                              setIsReceiveUpdating(true)
+
+                              const sendUnits = stringToUnits(val, DEFAULT_DECIMALS)
+                              
+                              // Convert to Tron side and subtract static 2 USDT fee
+                              const receiveUnits = sendUnits;
+                              const receiveAfterFee =
+                                receiveUnits > INTO_TRON_STATIC_FEE
+                                  ? receiveUnits - INTO_TRON_STATIC_FEE
+                                  : 0n;
+
+                              const newReceiveAmount = unitsToString(receiveAfterFee, DEFAULT_DECIMALS)
+                              setReceiveAmount(newReceiveAmount)
+                            } else {
+                              setReceiveAmount("")
+                            }
+                          } catch (e) {
+                            setReceiveAmount("")
+                          }
+                        }}
+                        maxUnits={effectiveMaxUnits}
+                        swapRateUnits={RATE_SCALE}
+                        onIconClick={() => setIsChainSelectorOpen(true)}
+                        overlayIcon={selectedChain.icon}
+                        balance={selectedTokenBalance}
+                        showMaxButton={true}
+                        onMaxClick={handleMaxClick}
+                        isInvalid={amountExceedsBalance || outputBelowZero}
+                      />
+
+                      <CurrencyInput
+                        label="You receive"
+                        value={receiveAmount}
+                        currency={formatCurrency(receiveAmount)}
+                        currencyIcon="/USDT.svg"
+                        currencyName="USDT Tron"
+                        onChange={(val: string) => {
+                          // When the DESIRED Tron receive amount changes, calculate how much the user needs to send
+                          try {
+                            setReceiveAmount(val)
+
+                            if (val) {
+                              setIsReceiveUpdating(true)
+
+                              const receiveUnits = stringToUnits(val, DEFAULT_DECIMALS)
+                              // Add fee first, then convert back to the amount to send
+                              const receiveWithFee = receiveUnits + INTO_TRON_STATIC_FEE
+                              const sendUnits = receiveWithFee; // identity
+
+                              const newSendAmount = unitsToString(sendUnits, DEFAULT_DECIMALS)
+                              setSendAmount(newSendAmount)
+                            } else {
+                              setSendAmount("")
+                            }
+                          } catch (e) {
+                            setSendAmount("")
+                          }
+                        }}
+                        maxUnits={effectiveMaxUnits}
+                        swapRateUnits={RATE_SCALE}
+                        overlayIcon="/chains/Tron.svg"
+                        isReceive={false}
+                      />
+                    </>
+                  )}
 
                   <div className="bg-white rounded-[22px] py-[14px] flex items-center">
                     <div className="flex-1 flex items-center pl-[16px]">
@@ -489,7 +1012,9 @@ export default function Home() {
                                     transition={{ duration: 0.3 }}
                                     className="absolute left-0 top-0 h-full flex items-center text-[#B5B5B5] text-lg font-medium pointer-events-none select-none"
                                   >
-                                    {isResolvingEns && resolvingEnsName ? `Resolving ${resolvingEnsName}...` : (showErrorPlaceholder ? "Not an Ethereum address!" : "ENS or Address")}
+                                    {isResolvingEns && resolvingEnsName ? `Resolving ${resolvingEnsName}...` : (showErrorPlaceholder ? 
+                                      (transferMode === "send" ? "Not an Ethereum address!" : "Not a Tron address!") : 
+                                      (transferMode === "send" ? "ENS or Address" : "Tron Address"))}
                                   </motion.span>
                                 )}
                               </AnimatePresence>
@@ -528,16 +1053,16 @@ export default function Home() {
                   </div>
 
                   <button 
-                    className={`w-full py-4 rounded-[22px] text-[24px] font-medium bg-black text-white transition-colors flex justify-center items-center ${
-                      (!addressBadge || !sendAmount || isSwapping) ? 'hover:bg-gray-300 hover:text-gray-500 cursor-not-allowed' : ''
+                    className={`w-full py-4 rounded-[24px] text-2xl font-medium bg-black text-white transition-colors flex justify-center items-center ${
+                      buttonDisabled ? 'hover:bg-gray-300 hover:text-gray-500 cursor-not-allowed' : ''
                     }`}
-                    onClick={handleSwap}
-                    disabled={!addressBadge || !sendAmount || isSwapping}
+                    onClick={handleButtonClick}
+                    disabled={buttonDisabled}
                   >
                     {isSwapping ? (
                       <Loader2 className="animate-spin w-6 h-6" />
                     ) : (
-                      "Untron!"
+                      transferMode === "receive" ? (connectedAddress ? "Send" : "Connect Wallet") : "Untron"
                     )}
                   </button>
 
@@ -615,10 +1140,21 @@ export default function Home() {
 
       <ChainSelector
         open={isChainSelectorOpen}
-        chains={OUTPUT_CHAINS}
+        chains={transferMode === "receive" ? receiveChains : OUTPUT_CHAINS}
         selectedChainId={selectedChain.id}
         onSelect={(c) => setSelectedChain(c)}
         onClose={() => setIsChainSelectorOpen(false)}
+        showTokenSelector={transferMode === "receive"}
+        selectedToken={selectedToken}
+        onSelectToken={setSelectedToken}
+        userTokens={userTokens}
+      />
+
+      <SuccessPopup
+        isOpen={showSuccessPopup}
+        onClose={() => setShowSuccessPopup(false)}
+        address={addressBadge || ""}
+        txHash={successTxHash}
       />
     </div>
   )

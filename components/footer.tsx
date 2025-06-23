@@ -25,7 +25,7 @@ export default function Footer() {
                         href={link.href} 
                         target="_blank" 
                         rel="noopener noreferrer"
-                        className="break-words"
+                        className="break-words hover:text-foreground transition-colors"
                       >
                         {link.text}
                       </Link>

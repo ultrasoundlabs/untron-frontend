@@ -16,6 +16,10 @@ interface CurrencyInputProps {
   showMaxOutput?: boolean
   onIconClick?: () => void
   overlayIcon?: string
+  balance?: string
+  onMaxClick?: () => void
+  showMaxButton?: boolean
+  isInvalid?: boolean
 }
 
 export default function CurrencyInput({ 
@@ -31,6 +35,10 @@ export default function CurrencyInput({
   showMaxOutput = false,
   onIconClick,
   overlayIcon,
+  balance,
+  onMaxClick,
+  showMaxButton = false,
+  isInvalid = false,
 }: CurrencyInputProps) {
   const [inputValue, setInputValue] = useState(initialValue)
   const [showMaxWarning, setShowMaxWarning] = useState(false)
@@ -152,26 +160,33 @@ export default function CurrencyInput({
   }
 
   return (
-    <div className="bg-card rounded-[44px] pl-6 pr-[15px] w-full max-w-[560px] flex items-center h-[135px]">
+    <div className="bg-card rounded-[40px] pl-6 pr-[15px] w-full max-w-[560px] flex items-center h-[118px]">
       <div className="flex-1">
-        <label 
-          htmlFor={`currency-input-${currency}`}
-          className="text-[18px] font-normal text-foreground mb-0 leading-none block"
-        >
-          {label}
-        </label>
+        <div className="flex items-center">
+          <label
+            htmlFor={`currency-input-${currency}`}
+            className="text-[18px] font-normal text-foreground leading-none"
+          >
+            {label}
+          </label>
+          {showMaxButton && onMaxClick && (
+            <button
+              onClick={onMaxClick}
+              className="text-xs font-medium text-foreground/60 hover:text-foreground/80 transition-colors ml-2 px-2 py-1 rounded-md bg-foreground/5 hover:bg-foreground/10"
+            >
+              Max
+            </button>
+          )}
+        </div>
         <input
           id={`currency-input-${currency}`}
           type="text"
           inputMode="decimal"
           value={inputValue}
           onChange={handleInputChange}
-          placeholder="0.0"
-          className="text-[36px] font-semibold outline-none w-full text-foreground p-0 leading-none placeholder:text-muted-foreground"
+          placeholder={balance || "0.0"}
+          className={`text-[36px] font-semibold outline-none w-full p-0 leading-none placeholder:text-[#B5B5B5] ${isInvalid ? 'text-red-500' : 'text-foreground'}`}
         />
-        <div className="flex items-center justify-between">
-          <p className="text-normal text-muted-foreground mt-[0px] leading-none">{currency}</p>
-        </div>
         {showMaxOutput && showMaxWarning && typeof maxUnits === "bigint" && maxUnits > 0n && (
           <div className="text-xs text-red-500 mt-1">
             Maximum output is {unitsToString(maxUnits, DEFAULT_DECIMALS)} USDT
@@ -188,7 +203,7 @@ export default function CurrencyInput({
             {/* Chevron */}
             <ChevronDown className="w-6 h-6 text-foreground" />
             {/* Icon */}
-            <div className="relative w-[48px] h-[48px]">
+            <div className="relative w-12 h-12">
               <Image
                 src={currencyIcon || "/placeholder.svg"}
                 alt={currencyName || "Currency"}
@@ -211,8 +226,8 @@ export default function CurrencyInput({
           </div>
         </div>
       ) : (
-        <div className="flex items-center justify-center py-[5px] pl-[24px] pr-[5px]">
-          <div className="relative w-[52px] h-[52px]">
+        <div className="flex items-center justify-center py-[5px] pl-[24px] pr-[17px]">
+          <div className="relative w-12 h-12">
             <Image
               src={currencyIcon || "/placeholder.svg"}
               alt={currencyName || "Currency"}
