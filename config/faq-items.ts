@@ -22,7 +22,7 @@ export const defaultFaqItems: FaqItem[] = [
   {
     question: "What's Untron?",
     answer:
-      "Untron is a platform dedicated to making it cheap and easy to use USDT by connecting next-generation blockchains like Base and Arbitrum to Tron's vast payments ecosystem. Being in beta, Untron only supports sending USDT from Tron to Ethereum chains, but expanding to the other direction is our first priority.",
+      "Untron is a platform dedicated to making it cheap and easy to use USDT by connecting next-generation blockchains like Base and Arbitrum to Tron's vast payments ecosystem. With Untron, you can send and receive USDT on Tron & beyond without having to buy TRX or ETH, or even having a Tron wallet — your Ethereum wallet has got you covered.",
     emoji: "/emoji/Flexed Biceps.png",
   },
   {
@@ -34,13 +34,13 @@ export const defaultFaqItems: FaqItem[] = [
   {
     question: "What about into Tron?",
     answer:
-      "Untron's end goal is to make it as cheap and easy as possible to send USDT between Ethereum and Tron ecosystems. Being a decentralized platform, each of your swaps bring Untron closer to opening transfers in the remaining direction — from Ethereum chains to Tron.",
-    emoji: "/emoji/Face With Raised Eyebrow.png",
+      "That's even simpler — select \"Into Tron,\" choose your coin, and Untron instantly converts it to Tron USDT with the lowest possible gas — no ETH or TRX needed. Enjoy up to 70% lower fees than sending on Tron directly!",
+    emoji: "/emoji/Star-Struck.png",
   },
   {
     question: "How can I help?",
     answer:
-      "Untron is a completely open-source project, and its code is available on <a href='https://github.com/ultrasoundlabs' target='_blank' rel='noopener noreferrer' class='text-primary hover:underline'>GitHub</a>. If you're not a developer, you can help us by spreading the word about Untron, or providing liquidity for swaps. For the latter, reach out to us on <a href='https://t.me/alexhooketh' target='_blank' rel='noopener noreferrer' class='text-primary underline hover:underline'>Telegram</a> or at <a href='mailto:contact@untron.finance' class='text-primary underline hover:underline'>contact@untron.finance</a>.",
+      "Untron is a completely open-source project, and its code is available on <a href='https://github.com/ultrasoundlabs' target='_blank' rel='noopener noreferrer' class='text-primary hover:underline'>GitHub</a>. If you're not a developer, you can help us by spreading the word about Untron. We're also looking for liquidity providers for our intent solvers. For the latter, reach out to us on <a href='https://t.me/alexhooketh' target='_blank' rel='noopener noreferrer' class='text-primary underline hover:underline'>Telegram</a> or at <a href='mailto:contact@untron.finance' class='text-primary underline hover:underline'>contact@untron.finance</a>.",
     emoji: "/emoji/Thumbs Up.png",
   },
 ]; 
