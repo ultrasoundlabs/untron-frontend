@@ -686,7 +686,7 @@ export default function Home() {
     const match = userTokens.find((t) => t.symbol === selectedToken)
     if (match) return match.icon
     if (selectedToken === "USD₮0") return "/USDT.svg"
-    if (selectedToken === "USDC") return "/usdc.svg"
+    if (selectedToken === "USDC") return "/USDC.svg"
     // Generic placeholder
     return "/token-placeholder.svg"
   }, [selectedToken, userTokens])
