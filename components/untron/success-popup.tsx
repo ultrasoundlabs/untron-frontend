@@ -23,9 +23,7 @@ export function SuccessPopup({ isOpen, onClose, address, txHash }: SuccessPopupP
     }
   }, [isOpen, onClose])
 
-  const tronscanUrl = txHash 
-    ? `https://tronscan.org/#/transaction/${txHash}`
-    : `https://tronscan.org/#/address/${address}/transfers`
+  const tronscanUrl = `https://tronscan.org/#/address/${address}/transfers` // TODO: add txHash when the backend returns it
 
   return (
     <AnimatePresence>
@@ -78,7 +76,7 @@ export function SuccessPopup({ isOpen, onClose, address, txHash }: SuccessPopupP
 
                 <div className="mt-6 flex items-center gap-2">
                   <Image 
-                    src="/tokens/tron.svg" 
+                    src="/chains/Tron.svg" 
                     alt="Tron" 
                     width={24} 
                     height={24} 
