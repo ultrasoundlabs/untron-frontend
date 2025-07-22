@@ -13,6 +13,7 @@ export const OUTPUT_CHAINS: OutputChain[] = [
     icon: "/chains/Base.svg",
     fixedFeeUsd: 0n,
   },
+  /*
   {
     id: 42161,
     name: "Arbitrum",
@@ -73,4 +74,5 @@ export const OUTPUT_CHAINS: OutputChain[] = [
     icon: "/chains/WorldChain.svg",
     fixedFeeUsd: 0n,
   },
+  */
 ]

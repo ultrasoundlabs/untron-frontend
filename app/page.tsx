@@ -185,7 +185,7 @@ export default function Home() {
   const [isChainSelectorOpen, setIsChainSelectorOpen] = useState(false)
   const [isReceiveUpdating, setIsReceiveUpdating] = useState(false)
   const [transferMode, setTransferMode] = useState<TransferMode>("send")
-  const [selectedToken, setSelectedToken] = useState<string>("USD₮0")
+  const [selectedToken, setSelectedToken] = useState<string>("USDC")
   const [userTokens, setUserTokens] = useState<UserToken[]>([])
   const { openConnectModal } = useConnectModal();
   const chainId = useChainId();
@@ -194,7 +194,7 @@ export default function Home() {
   const [outputBelowZero, setOutputBelowZero] = useState(false)
 
   // Allowed chains in RECEIVE mode (ordered)
-  const RECEIVE_CHAIN_IDS: number[] = [8453, 10, 130, 480, 42161]
+  const RECEIVE_CHAIN_IDS: number[] = [8453] //, 10, 130, 480, 42161]
   const receiveChains = OUTPUT_CHAINS.filter((c) => RECEIVE_CHAIN_IDS.includes(c.id)).sort(
     (a, b) => RECEIVE_CHAIN_IDS.indexOf(a.id) - RECEIVE_CHAIN_IDS.indexOf(b.id)
   )
@@ -886,7 +886,7 @@ export default function Home() {
                         isReceive={false}
                         maxUnits={effectiveMaxUnits}
                         swapRateUnits={FROM_TRON_RATE_UNITS}
-                        onIconClick={() => setIsChainSelectorOpen(true)}
+                        /* onIconClick={() => setIsChainSelectorOpen(true)} */
                         overlayIcon={selectedChain.icon}
                       />
                     </>
@@ -926,7 +926,7 @@ export default function Home() {
                         }}
                         maxUnits={effectiveMaxUnits}
                         swapRateUnits={RATE_SCALE}
-                        onIconClick={() => setIsChainSelectorOpen(true)}
+                        /* onIconClick={() => setIsChainSelectorOpen(true)} */
                         overlayIcon={selectedChain.icon}
                         balance={selectedTokenBalance}
                         showMaxButton={true}

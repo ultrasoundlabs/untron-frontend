@@ -18,6 +18,7 @@ export const SUPPORTED_TOKENS: SupportedToken[] = [
     decimals: 6,
     icon: "/USDC.svg",
   },
+  /*
   {
     chainId: 8453,
     symbol: "USD₮0",
@@ -91,4 +92,5 @@ export const SUPPORTED_TOKENS: SupportedToken[] = [
     decimals: 6,
     icon: "/USDT.svg",
   },
+  */
 ] 
