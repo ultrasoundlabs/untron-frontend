@@ -1,5 +1,3 @@
-export const API_BASE_URL = 'https://untron.finance/api/v2'
-
 export interface ApiInfoResponse {
   availableLiquidity: number
   availableReceivers: string[]

@@ -10,7 +10,7 @@ import Header from "@/components/header"
 import Footer from "@/components/footer"
 import { useRouter } from "next/navigation"
 import { useAccount, useDisconnect, useConfig, useChainId, useSwitchChain } from "wagmi"
-import { API_BASE_URL, ApiInfoResponse } from "@/config/api"
+import { untronInfo, untronCreate } from "@/lib/untron-api"
 import { stringToUnits, unitsToString, DEFAULT_DECIMALS, convertSendToReceive, RATE_SCALE } from "@/lib/units"
 import { getEnsAddress } from '@wagmi/core'
 import { normalize } from 'viem/ens'
@@ -210,8 +210,7 @@ export default function Home() {
   useEffect(() => {
     const fetchApiInfo = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/info`)
-        const data: ApiInfoResponse = await response.json()
+        const data = await untronInfo()
         setMaxOrderOutput(BigInt(data.availableLiquidity.toString()))
       } catch (error) {
         console.error('Failed to fetch API info:', error)
@@ -482,38 +481,21 @@ export default function Home() {
     setErrorMessage(null)
 
     try {
-      // Convert the amount the user entered to the smallest units (6 decimals)
       const fromUnits = stringToUnits(sendAmount, DEFAULT_DECIMALS)
 
-      const orderPayload = {
-        // From Tron to selected L2 chain
-        toCoin: "usdt",
-        toChain: selectedChain.id,
-        fromAmount: Number(fromUnits.toString()),
-        rate: Number(FROM_TRON_RATE_UNITS.toString()),
+      const order = await untronCreate({
+        fromAmount: fromUnits,
         beneficiary: addressBadge,
-      }
-
-      const response = await fetch("https://untron.finance/api/v2-public/create-order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(orderPayload),
       })
 
-      if (!response.ok) {
-        throw new Error(`Unexpected status code ${response.status}`)
-      }
-
-      const data = await response.json()
-
-      if (data?.id) {
+      if (order?.id) {
         // Trigger exit animations
         setShowArrowAndFaq(false)
         setIsContentHidden(true)
 
         // Give the exit animations ~0.3s to play before navigation
         setTimeout(() => {
-          router.push(`/order/${data.id}`)
+          router.push(`/order/${order.id}`)
         }, 300)
       } else {
         throw new Error("Missing order id in response")

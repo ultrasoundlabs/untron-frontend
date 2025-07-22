@@ -7,7 +7,8 @@ import { useIsMobile } from "@/hooks/use-mobile"
 import { motion, AnimatePresence } from "motion/react"
 import { useUntronTimer } from "@/hooks/use-untron-timer"
 import { useUntronCopy } from "@/hooks/use-untron-copy"
-import { convertSendToReceive } from "@/lib/units"
+import { stringToUnits, convertSendToReceive, DEFAULT_DECIMALS } from "@/lib/units"
+import { untronGet } from "@/lib/untron-api"
 import { UntronExchange } from "@/components/untron/untron-exchange"
 import { UntronDepositAddress } from "@/components/untron/untron-deposit-address"
 import { UntronDetails } from "@/components/untron/untron-details"
@@ -24,24 +25,14 @@ const formatAddress = (address: string, truncate = false): string => {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
 
-const fetcher = async (url: string) => {
-  const res = await fetch(url)
-  if (!res.ok) {
-    throw new Error(`Server error: ${res.status}`)
-  }
-  const data = await res.json()
-  if (data.error) {
-    throw new Error(data.error)
-  }
-  return data
-}
+const fetchOrder = async (id: string) => untronGet(id)
 
 export default function UntronInterface({ orderId }: { orderId: string }) {
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [showQrOnMobile, setShowQrOnMobile] = useState(false)
   const isMobile = useIsMobile()
 
-  const { data: orderData, isLoading } = useSWR(orderId ? `https://untron.finance/api/v2/order/${orderId}` : null, fetcher, {
+  const { data: orderData, isLoading } = useSWR(orderId ?? null, fetchOrder, {
     refreshInterval: 3_000 // poll every 3s
   })
 
@@ -50,50 +41,34 @@ export default function UntronInterface({ orderId }: { orderId: string }) {
   // Extract and transform data according to the new schema once it is available
   const transformed = orderData
     ? (() => {
-        // All numeric values coming from the backend are integers, so we can safely use normal JS numbers
-        const {
-          order: { receiver, fromAmount, rate, toChain, toCoin, expiresAtS },
-          state: { receivedTotal: tronSentTotal, sentTotal: destReceivedTotal, sentTxHash, sentAtS },
-          status
-        } = orderData as {
-          order: {
-            receiver: string
-            fromAmount: number
-            rate: number
-            toChain: number
-            toCoin: string
-            expiresAtS: number
-          }
-          state: {
-            receivedTotal: number
-            sentTotal: number
-            sentTxHash: string
-            sentAtS: number
-            expiresAtS: number
-          }
-          status: string
-        }
+        const od = orderData as any
+        const receiver: string = (od.id as string).split("/")[0]
 
-        // Amount still left to send on Tron side
-        const remainingToSend: bigint = BigInt(fromAmount) - BigInt(tronSentTotal)
+        const rateUnits: bigint = BigInt(od.meta.rate.ppm)
+        const fromUnits = stringToUnits(od.from[0].amount, DEFAULT_DECIMALS)
+        const receivedUnits = stringToUnits(od.state.received, DEFAULT_DECIMALS)
+        const sentUnits = stringToUnits(od.state.sent, DEFAULT_DECIMALS)
 
-        // Amount the user would receive on the destination chain for what is still left to send
-        const expectedReceiveForRemaining: bigint = convertSendToReceive(BigInt(fromAmount), BigInt(rate))
+        const remainingToSend: bigint = fromUnits - receivedUnits
+        const expectedReceiveForRemaining: bigint = convertSendToReceive(remainingToSend, rateUnits)
 
         return {
           receiver,
-          toChain,
-          toCoin,
+          toChain: od.to.chain,
+          toCoin: od.to.token.symbol.toLowerCase(),
           // Remaining / expected amounts (used while the order is in-progress)
           remainingToSend,
           expectedReceiveForRemaining,
-          // Totals that were actually moved on-chain (used once the order is closed)
-          tronSentTotal: BigInt(tronSentTotal), // how much the user actually sent to Tron
-          destReceivedTotal: BigInt(destReceivedTotal ?? 0), // how much was released on the destination chain
-          sentTxHash,
-          sentAtS,
-          expiresAtS,
-          status,
+          // Totals actually moved on-chain
+          tronSentTotal: receivedUnits,
+          destReceivedTotal: sentUnits,
+          sentTxHash: od.txs?.close && od.txs.close.length > 0 ? od.txs.close[0].txHash : null,
+          expiresAtS:
+            od.order?.expiresAtS ??
+            od.meta?.expiresAtS ??
+            (od as any).expiresAt ??
+            (od.createdAt ? Math.floor(Date.parse(od.createdAt) / 1000) + 600 : 0),
+          status: od.status,
         }
       })()
     : null
@@ -106,17 +81,60 @@ export default function UntronInterface({ orderId }: { orderId: string }) {
 
   const { copied, handleCopy } = useUntronCopy(transformed?.receiver ?? "")
 
-  if (isLoading) {
+  if (isLoading || !orderData) {
     return (
       <div className="min-h-screen bg-background font-geist flex flex-col">
         <Header />
-        <main className="w-full max-w-[1200px] mx-auto px-4 py-12 flex flex-col flex-grow items-center justify-center">
-          <div className="text-muted-foreground flex items-center gap-2">
-            {/* <Loader2 className="w-5 h-5 animate-spin" />
-            <span>Loading...</span> */}
+
+        <main className="w-full max-w-[1200px] mx-auto px-4 py-12 flex flex-col lg:flex-row flex-grow animate-pulse">
+          {/* Left Side */}
+          <div className="w-full lg:w-3/5 pr-0 lg:pr-8 flex-shrink-0">
+            {/* Header */}
+            <div className="h-9 w-2/3 bg-muted-foreground/10 rounded-lg mb-2" />
+            <div className="h-6 w-1/2 bg-muted-foreground/10 rounded-lg mb-7" />
+
+            {/* Exchange */}
+            <div className="w-full mb-[18px]">
+              <div className="hidden sm:flex sm:flex-row sm:justify-start sm:items-center sm:gap-6">
+                <div className="bg-muted-foreground/10 rounded-[36px] h-[84px] flex-1" />
+                <div className="h-12 w-12 bg-muted-foreground/10 rounded-full" />
+                <div className="bg-muted-foreground/10 rounded-[36px] h-[84px] flex-1" />
+              </div>
+              <div className="flex flex-col sm:hidden gap-4">
+                <div className="flex items-center gap-0 w-full">
+                  <div className="bg-muted-foreground/10 rounded-[36px] h-[84px] flex-1" />
+                  <div className="h-12 w-12 bg-muted-foreground/10 rounded-full ml-0" />
+                </div>
+                <div className="bg-muted-foreground/10 rounded-[36px] h-[84px] w-full" />
+              </div>
+            </div>
+
+            {/* Deposit Address */}
+            <div className="mb-4 w-full">
+              <div className="bg-muted-foreground/10 rounded-[22px] h-[80px] w-full" />
+            </div>
+
+            {/* Details Toggle */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="h-6 w-1/3 bg-muted-foreground/10 rounded-lg" />
+              <div className="h-6 w-1/4 bg-muted-foreground/10 rounded-lg" />
+            </div>
+
+            {/* Details Box */}
+            <div className="min-h-[110px] w-full bg-muted-foreground/10 rounded-lg" />
+          </div>
+
+          {/* Right Side */}
+          <div className="w-full lg:w-2/5 flex-shrink-0 flex flex-col lg:items-end lg:pt-1 lg:pr-16">
+            <div className="w-[294px] h-[294px] bg-muted-foreground/10 rounded-[48px]" />
+            <div className="mt-[18px] text-center w-[302px] ml-[4px] space-y-2">
+              <div className="h-9 w-1/2 mx-auto bg-muted-foreground/10 rounded-lg" />
+              <div className="h-6 w-3/4 mx-auto bg-muted-foreground/10 rounded-lg" />
+            </div>
           </div>
         </main>
-        <motion.div 
+
+        <motion.div
           className="mt-auto"
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -156,7 +174,7 @@ export default function UntronInterface({ orderId }: { orderId: string }) {
     sentTxHash,
     status,
   } = transformed
-  const beneficiary = (orderData as any)?.order?.beneficiary ?? null // beneficiary from new schema
+  const beneficiary = (orderData as any)?.to?.beneficiary ?? null
 
   const showSuccess = status === "closed"
 
