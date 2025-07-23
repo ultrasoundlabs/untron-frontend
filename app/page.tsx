@@ -842,8 +842,8 @@ export default function Home() {
                         label="You receive"
                         value={receiveAmount}
                         currency={formatCurrency(receiveAmount)}
-                        currencyIcon="/USDT.svg"
-                        currencyName="USDT"
+                        currencyIcon="/USDC.svg"
+                        currencyName="USDC"
                         onChange={(val: string) => {
                           // When receive value changes, we need to calculate and update send amount
                           try {

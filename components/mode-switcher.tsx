@@ -35,26 +35,18 @@ export default function ModeSwitcher({ mode, onModeChange }: ModeSwitcherProps) 
         <span className="relative z-10">Untron</span>
       </motion.button>
       
-      {/* Into Tron Button */}
+      {/* Into Tron Button (disabled) */}
       <motion.button
-        onClick={() => onModeChange("receive")}
-        className="relative text-base font-regular px-4 py-1.5 rounded-full"
+        disabled
+        className="relative text-base font-regular px-4 py-1.5 rounded-full cursor-not-allowed"
         animate={{
-          color: mode === "receive" ? "#000000" : "#8d8d8d"
+          color: "#8d8d8d"
         }}
         transition={{
           duration: 0.3,
           ease: "easeInOut"
         }}
-        whileTap={{ scale: 0.95 }}
       >
-        {mode === "receive" && (
-          <motion.span
-            layoutId="mode-switcher-indicator"
-            className="absolute inset-0 bg-[#F3F2F2] rounded-full z-0"
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          />
-        )}
         <span className="relative z-10">Into Tron</span>
       </motion.button>
     </div>
