@@ -77,11 +77,11 @@ const geist = Geist({
 })
 
 // Fee configuration
-const FROM_TRON_FEE_BPS = 3n; // 3 basis points (0.03%)
+const FROM_TRON_FEE_BPS = 10n; // 10 basis points (0.1%)
 const INTO_TRON_STATIC_FEE: bigint = 2_000_000n; // 2 USDT/USDC (6-decimals)
 const INTO_TRON_MAX_AMOUNT: bigint = 1_000_000_000n; // 1,000 USDT/USDC (6-decimals)
 
-// Rate units after 3 bps fee: 1e6 * (1 - feeBps/10000)
+// Rate units after 10 bps fee: 1e6 * (1 - feeBps/10000)
 const FROM_TRON_RATE_UNITS: bigint = RATE_SCALE - (RATE_SCALE * FROM_TRON_FEE_BPS) / 10000n;
 
 // Helper: convert desired receiveUnits back to required sendUnits using swap rate
