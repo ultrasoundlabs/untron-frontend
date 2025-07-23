@@ -7,12 +7,13 @@ interface UntronSuccessProps {
   receivedTotal: bigint
   toChain: number
   toCoin: string
+  fromCoin: string
   sentTxHash: string
   receiver: string
   isMobile: boolean
 }
 
-export function UntronSuccess({ sentTotal, receivedTotal, toChain, toCoin, sentTxHash, receiver, isMobile }: UntronSuccessProps) {
+export function UntronSuccess({ sentTotal, receivedTotal, toChain, toCoin, fromCoin, sentTxHash, receiver, isMobile }: UntronSuccessProps) {
   return (
     <div className="w-full flex flex-col items-center text-center">
       <div className="flex items-center text-foreground mb-6">
@@ -25,6 +26,7 @@ export function UntronSuccess({ sentTotal, receivedTotal, toChain, toCoin, sentT
         receivedTotal={receivedTotal}
         toChain={toChain}
         toCoin={toCoin}
+        fromCoin={fromCoin}
       />
 
       <div className="max-w-lg w-full">
@@ -36,6 +38,7 @@ export function UntronSuccess({ sentTotal, receivedTotal, toChain, toCoin, sentT
             receivedTotal,
             sentTxHash,
             toCoin,
+            fromCoin,
             toChain,
             receiver,
           }}

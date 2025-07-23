@@ -46,6 +46,7 @@ export default function UntronInterface({ orderId }: { orderId: string }) {
 
         const rateUnits: bigint = BigInt(od.meta.rate.ppm)
         const fromUnits = stringToUnits(od.from[0].amount, DEFAULT_DECIMALS)
+        const fromCoinSym: string = (od.from[0]?.token?.symbol ?? 'USDT').toLowerCase()
         const receivedUnits = stringToUnits(od.state.received, DEFAULT_DECIMALS)
         const sentUnits = stringToUnits(od.state.sent, DEFAULT_DECIMALS)
 
@@ -56,6 +57,7 @@ export default function UntronInterface({ orderId }: { orderId: string }) {
           receiver,
           toChain: od.to.chain,
           toCoin: od.to.token.symbol.toLowerCase(),
+          fromCoin: fromCoinSym,
           // Remaining / expected amounts (used while the order is in-progress)
           remainingToSend,
           expectedReceiveForRemaining,
@@ -171,6 +173,7 @@ export default function UntronInterface({ orderId }: { orderId: string }) {
     destReceivedTotal,
     toChain,
     toCoin,
+    fromCoin,
     sentTxHash,
     status,
   } = transformed
@@ -189,6 +192,7 @@ export default function UntronInterface({ orderId }: { orderId: string }) {
               receivedTotal={destReceivedTotal}
               toChain={toChain}
               toCoin={toCoin}
+              fromCoin={fromCoin}
               sentTxHash={sentTxHash}
               receiver={receiver}
               isMobile={isMobile}
@@ -199,6 +203,7 @@ export default function UntronInterface({ orderId }: { orderId: string }) {
               receivedTotal={destReceivedTotal}
               toChain={toChain}
               toCoin={toCoin}
+              fromCoin={fromCoin}
               sentTxHash={sentTxHash}
               receiver={receiver}
               isMobile={isMobile}
@@ -251,6 +256,7 @@ export default function UntronInterface({ orderId }: { orderId: string }) {
                 receivedTotal={expectedReceiveForRemaining}
                 toChain={toChain}
                 toCoin={toCoin}
+                fromCoin={fromCoin}
               />
             </motion.div>
 
@@ -297,6 +303,7 @@ export default function UntronInterface({ orderId }: { orderId: string }) {
                     receivedTotal: expectedReceiveForRemaining,
                     sentTxHash,
                     toCoin,
+                    fromCoin,
                     toChain,
                     receiver: beneficiary,
                   }}

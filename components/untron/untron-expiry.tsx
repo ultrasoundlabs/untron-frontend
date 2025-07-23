@@ -9,12 +9,13 @@ interface UntronExpiryProps {
   receivedTotal: bigint
   toChain: number
   toCoin: string
+  fromCoin: string
   sentTxHash: string
   receiver: string
   isMobile: boolean
 }
 
-export function UntronExpiry({ sentTotal, receivedTotal, toChain, toCoin, sentTxHash, receiver, isMobile }: UntronExpiryProps) {
+export function UntronExpiry({ sentTotal, receivedTotal, toChain, toCoin, fromCoin, sentTxHash, receiver, isMobile }: UntronExpiryProps) {
   const router = useRouter()
 
   return (
@@ -32,6 +33,7 @@ export function UntronExpiry({ sentTotal, receivedTotal, toChain, toCoin, sentTx
             receivedTotal={receivedTotal}
             toChain={toChain}
             toCoin={toCoin}
+            fromCoin={fromCoin}
           />
 
           <div className="w-full">
@@ -43,6 +45,7 @@ export function UntronExpiry({ sentTotal, receivedTotal, toChain, toCoin, sentTx
                 receivedTotal,
                 sentTxHash,
                 toCoin,
+                fromCoin,
                 toChain,
                 receiver,
               }}

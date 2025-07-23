@@ -8,9 +8,10 @@ interface UntronExchangeProps {
   receivedTotal: bigint
   toChain: number
   toCoin: string
+  fromCoin: string
 }
 
-export function UntronExchange({ sentTotal, receivedTotal, toChain, toCoin }: UntronExchangeProps) {
+export function UntronExchange({ sentTotal, receivedTotal, toChain, toCoin, fromCoin }: UntronExchangeProps) {
   // map chain id to display name and icon path
   const chainMap: Record<number, { name: string; icon: string; fixedFeeUsd: bigint }> = OUTPUT_CHAINS.reduce((acc, c) => {
     acc[c.id] = { name: c.name, icon: c.icon, fixedFeeUsd: c.fixedFeeUsd }
@@ -52,7 +53,7 @@ export function UntronExchange({ sentTotal, receivedTotal, toChain, toCoin }: Un
   return (
     <div className="w-full mb-[18px]">
       {/* Desktop layout: all in one row */}
-      <div className="hidden sm:flex sm:flex-row sm:justify-start sm:items-center sm:gap-6">
+      <div className="hidden sm:flex sm:flex-row sm:justify-center sm:items-center sm:gap-6">
         <motion.div
           key="send"
           className="bg-card rounded-[36px] py-[14px] pl-4 pr-8 flex items-center w-auto"
@@ -60,9 +61,9 @@ export function UntronExchange({ sentTotal, receivedTotal, toChain, toCoin }: Un
           <div className="w-12 h-12 mr-4 flex-shrink-0">
             <img src="/chains/Tron.svg" alt="Tron Logo" className="w-full h-full" />
           </div>
-          <div className="flex flex-col -space-y-1 overflow-hidden min-w-0">
+          <div className="flex flex-col -space-y-1 overflow-hidden min-w-0 text-left">
             <div className="text-[18px] text-muted-foreground font-regular">Send Tron</div>
-            <div className="text-[36px] font-semibold text-foreground whitespace-nowrap overflow-hidden text-ellipsis">{formatAmount(sentTotal, 'ceil')} {toCoin.toUpperCase()}</div>
+            <div className="text-[36px] font-semibold text-foreground whitespace-nowrap overflow-hidden text-ellipsis">{formatAmount(sentTotal, 'ceil')} {fromCoin.toUpperCase()}</div>
           </div>
         </motion.div>
 
@@ -82,7 +83,7 @@ export function UntronExchange({ sentTotal, receivedTotal, toChain, toCoin }: Un
           <div className="w-12 h-12 mr-4 flex-shrink-0">
             <img src={toChainInfo.icon} alt={`${toChainInfo.name} Logo`} className="w-full h-full" />
           </div>
-          <div className="flex flex-col -space-y-1 overflow-hidden min-w-0">
+          <div className="flex flex-col -space-y-1 overflow-hidden min-w-0 text-left">
             <div className="text-[18px] text-muted-foreground font-regular truncate">Receive {toChainInfo.name}</div>
             <div className="text-[36px] font-semibold text-foreground whitespace-nowrap overflow-hidden text-ellipsis">{formatAmount(receivedTotal - toChainInfo.fixedFeeUsd, 'floor')} {toCoin.toUpperCase()}</div>
           </div>
@@ -99,9 +100,9 @@ export function UntronExchange({ sentTotal, receivedTotal, toChain, toCoin }: Un
              <div className="w-12 h-12 mr-4 flex-shrink-0">
                <img src="/chains/Tron.svg" alt="Tron Logo" className="w-full h-full" />
              </div>
-             <div className="flex flex-col -space-y-1 overflow-hidden min-w-0">
+             <div className="flex flex-col -space-y-1 overflow-hidden min-w-0 text-left">
                <div className="text-[18px] text-muted-foreground font-regular">Send Tron</div>
-               <div className="text-[36px] font-semibold text-foreground whitespace-nowrap overflow-hidden text-ellipsis">{formatAmount(sentTotal, 'ceil')} {toCoin.toUpperCase()}</div>
+               <div className="text-[36px] font-semibold text-foreground whitespace-nowrap overflow-hidden text-ellipsis">{formatAmount(sentTotal, 'ceil')} {fromCoin.toUpperCase()}</div>
              </div>
            </motion.div>
 
@@ -122,7 +123,7 @@ export function UntronExchange({ sentTotal, receivedTotal, toChain, toCoin }: Un
            <div className="w-12 h-12 mr-4 flex-shrink-0">
              <img src={toChainInfo.icon} alt={`${toChainInfo.name} Logo`} className="w-full h-full" />
            </div>
-           <div className="flex flex-col -space-y-1 overflow-hidden min-w-0">
+           <div className="flex flex-col -space-y-1 overflow-hidden min-w-0 text-left">
              <div className="text-[18px] text-muted-foreground font-regular truncate">Receive {toChainInfo.name}</div>
              <div className="text-[36px] font-semibold text-foreground whitespace-nowrap overflow-hidden text-ellipsis">{formatAmount(receivedTotal - toChainInfo.fixedFeeUsd, 'floor')} {toCoin.toUpperCase()}</div>
            </div>
