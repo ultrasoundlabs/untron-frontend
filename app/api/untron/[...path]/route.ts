@@ -7,12 +7,9 @@ function buildUpstreamUrl(pathSegments: string[], search: string) {
   return `${UPSTREAM_BASE}/${joined}${search}`;
 }
 
-export async function GET(req: NextRequest, {
-  params,
-}: {
-  params: { path: string[] };
-}) {
-  const upstream = buildUpstreamUrl(params.path, new URL(req.url).search);
+export async function GET(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
+  const { path } = await params;
+  const upstream = buildUpstreamUrl(path, new URL(req.url).search);
   const resp = await fetch(upstream, {
     method: "GET",
     // pass along no-cache to avoid stale data during polling
@@ -25,12 +22,9 @@ export async function GET(req: NextRequest, {
   });
 }
 
-export async function POST(req: NextRequest, {
-  params,
-}: {
-  params: { path: string[] };
-}) {
-  const upstream = buildUpstreamUrl(params.path, "");
+export async function POST(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
+  const { path } = await params;
+  const upstream = buildUpstreamUrl(path, "");
   const body = await req.text();
   const resp = await fetch(upstream, {
     method: "POST",
