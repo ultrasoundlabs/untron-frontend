@@ -17,13 +17,14 @@ interface UntronDetailsProps {
     receivedTotal: bigint
     sentTxHash: string
     toCoin: string
+    fromCoin: string
     toChain: number
     receiver: string
   }
 }
 
 export function UntronDetails({ isOpen, isMobile, order }: UntronDetailsProps) {
-  const { sentTotal, receivedTotal, sentTxHash, toCoin, toChain, receiver } = order
+  const { sentTotal, receivedTotal, sentTxHash, toCoin, fromCoin, toChain, receiver } = order
   const chainMap: Record<number, { name: string; icon: string; fixedFeeUsd: bigint }> = OUTPUT_CHAINS.reduce((acc, c) => {
     acc[c.id] = { name: c.name, icon: c.icon, fixedFeeUsd: c.fixedFeeUsd }
     return acc
@@ -33,7 +34,7 @@ export function UntronDetails({ isOpen, isMobile, order }: UntronDetailsProps) {
   
   const explorerUrl = toChain === 10 
     ? `https://optimistic.etherscan.io/tx/${sentTxHash}` 
-    : `https://layerzeroscan.com/tx/${sentTxHash}`
+    : `https://basescan.org/tx/${sentTxHash}`
 
   return (
     <motion.div 
@@ -46,7 +47,7 @@ export function UntronDetails({ isOpen, isMobile, order }: UntronDetailsProps) {
       <div className="flex flex-col gap-[5px] text-[16px] text-muted-foreground">
         <div className="flex justify-between">
           <span className="font-regular">Amount to send</span>
-          <span className="font-medium text-foreground">{unitsToString(sentTotal)} {toCoin.toUpperCase()} TRC-20</span>
+          <span className="font-medium text-foreground">{unitsToString(sentTotal)} {fromCoin.toUpperCase()} TRC-20</span>
         </div>
         <div className="flex justify-between">
           <span className="font-regular">Amount to receive</span>

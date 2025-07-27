@@ -10,7 +10,7 @@ import Header from "@/components/header"
 import Footer from "@/components/footer"
 import { useRouter } from "next/navigation"
 import { useAccount, useDisconnect, useConfig, useChainId, useSwitchChain } from "wagmi"
-import { API_BASE_URL, ApiInfoResponse } from "@/config/api"
+import { untronInfo, untronCreate } from "@/lib/untron-api"
 import { stringToUnits, unitsToString, DEFAULT_DECIMALS, convertSendToReceive, RATE_SCALE } from "@/lib/units"
 import { getEnsAddress } from '@wagmi/core'
 import { normalize } from 'viem/ens'
@@ -77,11 +77,11 @@ const geist = Geist({
 })
 
 // Fee configuration
-const FROM_TRON_FEE_BPS = 3n; // 3 basis points (0.03%)
+const FROM_TRON_FEE_BPS = 10n; // 10 basis points (0.1%)
 const INTO_TRON_STATIC_FEE: bigint = 2_000_000n; // 2 USDT/USDC (6-decimals)
 const INTO_TRON_MAX_AMOUNT: bigint = 1_000_000_000n; // 1,000 USDT/USDC (6-decimals)
 
-// Rate units after 3 bps fee: 1e6 * (1 - feeBps/10000)
+// Rate units after 10 bps fee: 1e6 * (1 - feeBps/10000)
 const FROM_TRON_RATE_UNITS: bigint = RATE_SCALE - (RATE_SCALE * FROM_TRON_FEE_BPS) / 10000n;
 
 // Helper: convert desired receiveUnits back to required sendUnits using swap rate
@@ -185,7 +185,7 @@ export default function Home() {
   const [isChainSelectorOpen, setIsChainSelectorOpen] = useState(false)
   const [isReceiveUpdating, setIsReceiveUpdating] = useState(false)
   const [transferMode, setTransferMode] = useState<TransferMode>("send")
-  const [selectedToken, setSelectedToken] = useState<string>("USD₮0")
+  const [selectedToken, setSelectedToken] = useState<string>("USDC")
   const [userTokens, setUserTokens] = useState<UserToken[]>([])
   const { openConnectModal } = useConnectModal();
   const chainId = useChainId();
@@ -194,7 +194,7 @@ export default function Home() {
   const [outputBelowZero, setOutputBelowZero] = useState(false)
 
   // Allowed chains in RECEIVE mode (ordered)
-  const RECEIVE_CHAIN_IDS: number[] = [8453, 10, 130, 480, 42161]
+  const RECEIVE_CHAIN_IDS: number[] = [8453] //, 10, 130, 480, 42161]
   const receiveChains = OUTPUT_CHAINS.filter((c) => RECEIVE_CHAIN_IDS.includes(c.id)).sort(
     (a, b) => RECEIVE_CHAIN_IDS.indexOf(a.id) - RECEIVE_CHAIN_IDS.indexOf(b.id)
   )
@@ -210,8 +210,7 @@ export default function Home() {
   useEffect(() => {
     const fetchApiInfo = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/info`)
-        const data: ApiInfoResponse = await response.json()
+        const data = await untronInfo()
         setMaxOrderOutput(BigInt(data.availableLiquidity.toString()))
       } catch (error) {
         console.error('Failed to fetch API info:', error)
@@ -482,38 +481,21 @@ export default function Home() {
     setErrorMessage(null)
 
     try {
-      // Convert the amount the user entered to the smallest units (6 decimals)
       const fromUnits = stringToUnits(sendAmount, DEFAULT_DECIMALS)
 
-      const orderPayload = {
-        // From Tron to selected L2 chain
-        toCoin: "usdt",
-        toChain: selectedChain.id,
-        fromAmount: Number(fromUnits.toString()),
-        rate: Number(FROM_TRON_RATE_UNITS.toString()),
+      const order = await untronCreate({
+        fromAmount: fromUnits,
         beneficiary: addressBadge,
-      }
-
-      const response = await fetch("https://untron.finance/api/v2-public/create-order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(orderPayload),
       })
 
-      if (!response.ok) {
-        throw new Error(`Unexpected status code ${response.status}`)
-      }
-
-      const data = await response.json()
-
-      if (data?.id) {
+      if (order?.id) {
         // Trigger exit animations
         setShowArrowAndFaq(false)
         setIsContentHidden(true)
 
         // Give the exit animations ~0.3s to play before navigation
         setTimeout(() => {
-          router.push(`/order/${data.id}`)
+          router.push(`/order/${order.id}`)
         }, 300)
       } else {
         throw new Error("Missing order id in response")
@@ -860,8 +842,8 @@ export default function Home() {
                         label="You receive"
                         value={receiveAmount}
                         currency={formatCurrency(receiveAmount)}
-                        currencyIcon="/USDT.svg"
-                        currencyName="USDT"
+                        currencyIcon="/USDC.svg"
+                        currencyName="USDC"
                         onChange={(val: string) => {
                           // When receive value changes, we need to calculate and update send amount
                           try {
@@ -886,7 +868,7 @@ export default function Home() {
                         isReceive={false}
                         maxUnits={effectiveMaxUnits}
                         swapRateUnits={FROM_TRON_RATE_UNITS}
-                        onIconClick={() => setIsChainSelectorOpen(true)}
+                        /* onIconClick={() => setIsChainSelectorOpen(true)} */
                         overlayIcon={selectedChain.icon}
                       />
                     </>
@@ -926,7 +908,7 @@ export default function Home() {
                         }}
                         maxUnits={effectiveMaxUnits}
                         swapRateUnits={RATE_SCALE}
-                        onIconClick={() => setIsChainSelectorOpen(true)}
+                        /* onIconClick={() => setIsChainSelectorOpen(true)} */
                         overlayIcon={selectedChain.icon}
                         balance={selectedTokenBalance}
                         showMaxButton={true}

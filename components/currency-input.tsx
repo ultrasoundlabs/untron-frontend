@@ -162,7 +162,7 @@ export default function CurrencyInput({
   return (
     <div className="bg-card rounded-[40px] pl-6 pr-[15px] w-full max-w-[560px] flex items-center h-[118px]">
       <div className="flex-1">
-        <div className="flex items-center">
+        <div className="flex items-center h-6">
           <label
             htmlFor={`currency-input-${currency}`}
             className="text-[18px] font-normal text-foreground leading-none"
@@ -172,7 +172,7 @@ export default function CurrencyInput({
           {showMaxButton && onMaxClick && (
             <button
               onClick={onMaxClick}
-              className="text-xs font-medium text-foreground/60 hover:text-foreground/80 transition-colors ml-2 px-2 py-1 rounded-md bg-foreground/5 hover:bg-foreground/10"
+              className="text-xs font-medium text-foreground/60 hover:text-foreground/80 transition-colors ml-2 px-2 py-1 rounded-xl bg-foreground/5 hover:bg-foreground/10"
             >
               Max
             </button>
