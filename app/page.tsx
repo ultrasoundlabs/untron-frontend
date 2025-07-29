@@ -1057,7 +1057,7 @@ export default function Home() {
                     <p className="text-center text-red-500 mt-2 text-base">{errorMessage}</p>
                   )}
 
-                  <AnimatePresence>
+                  <AnimatePresence mode="popLayout">
                     {showWalletLink && (
                       <motion.a
                         href="https://keys.coinbase.com"
