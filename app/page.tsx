@@ -13,6 +13,7 @@ import { useAccount, useDisconnect, useConfig, useChainId, useSwitchChain } from
 import { untronInfo, untronCreate } from "@/lib/untron-api"
 import { stringToUnits, unitsToString, DEFAULT_DECIMALS, convertSendToReceive, RATE_SCALE } from "@/lib/units"
 import { getEnsAddress } from '@wagmi/core'
+import { mainnet } from 'wagmi/chains'
 import { normalize } from 'viem/ens'
 import { getAddress } from 'viem'
 import { OUTPUT_CHAINS, OutputChain } from "@/config/chains"
@@ -325,6 +326,7 @@ export default function Home() {
       const normalizedName = normalize(ensName)
       const address = await getEnsAddress(config, {
         name: normalizedName,
+        chainId: mainnet.id,
       })
       if (address) {
         try {
