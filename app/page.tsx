@@ -193,6 +193,7 @@ export default function Home() {
   const { switchChain } = useSwitchChain();
   const [amountExceedsBalance, setAmountExceedsBalance] = useState(false)
   const [outputBelowZero, setOutputBelowZero] = useState(false)
+  const [isFocused, setIsFocused] = useState(false)
 
   // Allowed chains in RECEIVE mode (ordered)
   const RECEIVE_CHAIN_IDS: number[] = [8453] //, 10, 130, 480, 42161]
@@ -985,9 +986,11 @@ export default function Home() {
                                 autoCorrect="off"
                                 spellCheck="false"
                                 autoCapitalize="off"
+                                onFocus={() => setIsFocused(true)}
+                                onBlur={() => setIsFocused(false)}
                               />
                               <AnimatePresence>
-                                {inputValue === "" && (
+                                {inputValue === "" && !isFocused && (
                                   <motion.span
                                     key={showErrorPlaceholder ? "error" : "default"}
                                     initial={{ opacity: 0 }}
